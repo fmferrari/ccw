@@ -6,33 +6,31 @@ updated: 2026-05-23
 status: active
 ---
 
-# Phase 1A runtime bootstrap spec
+# Phase 1B schema bootstrap spec
 
 ## Purpose
 
-Ship the first executable CCW slice: an installable CLI that can materialize
-repo-local `.ccw/` state layout deterministically.
+Bootstrap the SQLite substrate inside repo-local `.ccw/` state now that the
+Phase 1A runtime layout contract is stable.
 
-This narrows the earlier Phase 1 bundle so runtime path semantics, rerun
-behavior, and config defaults are frozen before SQLite schema bootstrap binds
-the implementation to a data model.
+This slice extends `ccw init` to create `.ccw/index.sqlite` and the first named
+tables while deliberately avoiding Phase 2 indexing logic and Phase 3 memory
+semantics.
 
 ## In scope
 
-- An installable `ccw` CLI entrypoint
-- `ccw init` for the current repo or a passed path
-- Creation of `.ccw/`, `compiled/`, and `snapshots/`
-- Creation of `.ccw/config.yaml`
-- Idempotent rerun behavior
-- Explicit invalid-target and non-writable-path failure behavior
-- Focused CLI tests
+- Creation of `.ccw/index.sqlite` during `ccw init`
+- Creation of the `files`, `symbols`, `edges`, `facts`, and `episodes` tables
+- Idempotent rerun behavior when the database already exists
+- Explicit conflicting-database-path failure behavior
+- Focused CLI tests for schema presence and rerun safety
 
 ## Explicit non-goals
 
 - Full file walking or indexing
-- Creation of `.ccw/index.sqlite`
-- SQLite schema bootstrap for `files`, `symbols`, `edges`, `facts`, and
-  `episodes`
+- Populating rows in any SQLite table
+- Finalizing the Phase 2 indexing or Phase 3 memory column model
+- Schema migrations or version-management policy
 - Symbol extraction
 - Task classification
 - `ccw compile`, `ccw validate`, `ccw compress`, or `ccw update`
@@ -41,57 +39,76 @@ the implementation to a data model.
 
 ## Contract
 
-1. `ccw init` resolves an init target from the current repo or a passed path.
-2. `ccw init` creates the local state directory if missing.
-3. `ccw init` creates these paths when absent:
-   - `.ccw/config.yaml`
-   - `.ccw/compiled/`
-   - `.ccw/snapshots/`
-4. `ccw init` does not overwrite existing config or runtime artifacts on rerun.
-5. The command fails loudly on invalid target paths or non-writable locations.
-6. The command does not create SQLite state yet; schema bootstrap is the
-   immediate follow-on slice.
+1. `ccw init` preserves the Phase 1A init-target, runtime-layout, and config
+   creation behavior.
+2. `ccw init` creates `.ccw/index.sqlite` when it is absent.
+3. The bootstrapped database contains these named tables:
+   - `files`
+   - `symbols`
+   - `edges`
+   - `facts`
+   - `episodes`
+4. Each initial table is intentionally minimal and reserves only the primary-key
+   surface needed to freeze table names without prematurely locking the later
+   indexing or memory model.
+5. Re-running `ccw init` does not overwrite config, directories, or existing
+   database contents.
+6. The command fails loudly on invalid target paths, non-writable locations, or
+   a conflicting `.ccw/index.sqlite` path.
 
 ## Proposed modules or surfaces
 
 - `ccw.cli` - command parsing and dispatch
 - `ccw.init` - repo bootstrap flow
 - `ccw.config` - local config file defaults and loading
+- `ccw.schema` - SQLite schema bootstrap for local state
 - `tests/` fixtures for CLI bootstrap behavior
 
 ## Validation
 
-- CLI test: `ccw init` creates the expected layout in a temp repo
-- CLI test: re-running `ccw init` is idempotent
-- CLI test: invalid or non-writable targets fail with a stable error
+- CLI test: `ccw init` creates the expected layout and `.ccw/index.sqlite`
+- CLI test: the bootstrapped database contains the expected table names
+- CLI test: re-running `ccw init` preserves config and existing database rows
+- CLI test: invalid, non-writable, or conflicting database-path targets fail
+  with a stable error
 - Config test: default config file is created and loadable
 
 ## Premortem-driven controls
 
-- Keep SQLite schema bootstrap out of this slice so runtime path and packaging
-  contracts can stabilize without hidden data-model coupling.
-- Treat invalid-target and non-writable-path behavior as first-class acceptance
-  criteria to prevent silent partial bootstrap.
-- Freeze only the minimal config surface needed for follow-on slices so later
-  schema work can extend state without redefining the `ccw init` contract.
+- Keep the initial table definitions intentionally minimal so Phase 2 indexing
+  and Phase 3 memory work can extend them additively instead of inheriting a
+  guessed data model.
+- Treat invalid-target, non-writable-path, and conflicting database-path
+  behavior as first-class acceptance criteria to prevent silent partial
+  bootstrap.
+- Keep all SQLite bootstrap SQL behind one dedicated module so later migrations
+  or schema expansion do not leak into CLI parsing.
+- Verify rerun safety by preserving existing database rows, not just by checking
+  that the file still exists.
 
 ## Done when
 
 - A contributor can install the package locally and run `ccw init`
-- The generated `.ccw/` layout matches the documented runtime bootstrap shape
-- No manual file creation is needed to prepare repo-local runtime state
+- The generated `.ccw/` layout includes `.ccw/index.sqlite`
+- The bootstrapped database exposes the expected table names
+- No manual file or SQL creation is needed to prepare repo-local runtime state
 - Tests cover happy path, rerun safety, and failure behavior
 
 ## Implementation status
 
-- Implemented with an installable `ccw` console entrypoint from `pyproject.toml`
-- `ccw init` now materializes `.ccw/`, `.ccw/compiled/`, `.ccw/snapshots/`, and `.ccw/config.yaml`
-- The config file uses a minimal YAML subset and is loadable through `ccw.config`
-- Tests cover happy path, rerun safety, invalid-target failure, non-writable-path failure, and the absence of `.ccw/index.sqlite`
+- `ccw init` now materializes `.ccw/index.sqlite` alongside the Phase 1A local
+  state layout and config file
+- SQLite bootstrap lives in `ccw.schema` and creates the `files`, `symbols`,
+  `edges`, `facts`, and `episodes` tables idempotently
+- The schema intentionally reserves table names with minimal primary-key-only
+  tables so later slices can extend the model additively
+- Validation passes with `python -m unittest` from the repo root
+- Tests cover happy path, table presence, rerun preservation, invalid-target
+  failure, non-writable-path failure, conflicting database-path failure, and
+  the installed console entrypoint
 
 ## Follow-on slice
 
-After this slice lands, the next build step is Phase 1B schema bootstrap:
-create `.ccw/index.sqlite`, add the initial tables, and extend tests to prove
-that the runtime layout contract survives schema creation. Phase 2 indexing
-starts after that follow-on lands.
+After this slice lands, the next build step is Phase 2 deterministic repo
+inventory: walk the repo, persist file metadata and hashes into `files`, and
+add fixture-backed indexing tests before symbol extraction expands the schema.

@@ -32,7 +32,7 @@ Goal: give the repo a repeatable planning and execution discipline for CCW.
 Deliverable: future work in this repo can be planned and executed through local
 artifacts instead of ad hoc chat context.
 
-## Phase 1 - CLI scaffold and local state bootstrap (current)
+## Phase 1 - CLI scaffold and local state bootstrap (completed)
 
 Goal: ship an installable `ccw` CLI with `ccw init` and deterministic local
 state bootstrap under `.ccw/`.
@@ -40,8 +40,8 @@ state bootstrap under `.ccw/`.
 - [x] Slice 1A: create the Python package and installable `ccw` entrypoint
 - [x] Slice 1A: implement `ccw init` to create `.ccw/`, `compiled/`, `snapshots/`, and `.ccw/config.yaml`
 - [x] Slice 1A: add CLI tests for initialization, rerun safety, invalid-target failure, config creation, non-writable-path failure, and no pre-schema SQLite bootstrap
-- [ ] Slice 1B (follow-on): bootstrap the SQLite schema for files, symbols, edges, facts, and episodes
-- [ ] Slice 1B (follow-on): add schema creation tests after the runtime layout contract is stable
+- [x] Slice 1B (follow-on): bootstrap the SQLite schema for files, symbols, edges, facts, and episodes
+- [x] Slice 1B (follow-on): add schema creation tests after the runtime layout contract is stable
 
 Next slice rationale:
 
@@ -58,15 +58,16 @@ Acceptance criteria:
 - The CLI surface is test-covered and installable from the repo
 
 Deliverable: a user can run `ccw init` and get a valid deterministic local
-state scaffold, with SQLite schema bootstrap landing in the immediate follow-on
-slice.
+state scaffold, including SQLite schema bootstrap under `.ccw/index.sqlite`.
 
 Current status:
 
-- Phase 1A is implemented and validated.
-- The next active slice is Phase 1B schema bootstrap.
+- Phase 1 is implemented and validated.
+- Validation command: `python -m unittest`
+- The next active slice is Phase 2 deterministic repo inventory and indexing,
+  starting with file metadata, hashes, and language persistence in `files`.
 
-## Phase 2 - Deterministic repo inventory and indexing
+## Phase 2 - Deterministic repo inventory and indexing (current)
 
 Goal: build the deterministic repository index that powers later compilation.
 

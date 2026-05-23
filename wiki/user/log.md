@@ -19,3 +19,6 @@ Append-only record of vault changes. Each entry starts with
 - architecture :: [[phase-1-deterministic-compiler-spec]] - created the first execution spec for CLI bootstrap, `.ccw/` initialization, and SQLite schema setup
 - architecture :: [[agentic-development-workflow]] - adapted the planning and delivery workflow for CCW's PRD, roadmap, ADR, and slice-spec flow
 - architecture :: [[index]] - added the initial architecture index and template references
+- architecture :: [[phase-1-deterministic-compiler-spec]] - advanced the active slice spec to Phase 1B schema bootstrap and recorded the shipped SQLite bootstrap contract and follow-on indexing direction
+- architecture :: [[development-plan]] - marked Phase 1 schema bootstrap complete and advanced the next active slice to Phase 2 deterministic repo inventory and indexing
+- architecture :: [[phase-1-deterministic-compiler-spec]] - recorded `python -m unittest` as the passing Phase 1B validation command after making default unittest discovery cover the repo suite

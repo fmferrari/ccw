@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -13,6 +14,9 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from ccw.config import DEFAULT_CONFIG, load_config
+
+
+EXPECTED_SCHEMA_TABLES = {"edges", "episodes", "facts", "files", "symbols"}
 
 
 def run_ccw(*args: str, cwd: Path) -> subprocess.CompletedProcess[str]:
@@ -50,12 +54,21 @@ def run_installed_ccw(*args: str, cwd: Path, venv_dir: Path) -> subprocess.Compl
 
 
 class InitCliTests(unittest.TestCase):
+    def assert_schema_tables(self, database_path: Path) -> None:
+        with sqlite3.connect(database_path) as connection:
+            rows = connection.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table'"
+            ).fetchall()
+
+        self.assertEqual({name for (name,) in rows}, EXPECTED_SCHEMA_TABLES)
+
     def assert_runtime_layout(self, target: Path) -> None:
         self.assertTrue((target / ".ccw").is_dir())
         self.assertTrue((target / ".ccw" / "compiled").is_dir())
         self.assertTrue((target / ".ccw" / "snapshots").is_dir())
         self.assertTrue((target / ".ccw" / "config.yaml").is_file())
-        self.assertFalse((target / ".ccw" / "index.sqlite").exists())
+        self.assertTrue((target / ".ccw" / "index.sqlite").is_file())
+        self.assert_schema_tables(target / ".ccw" / "index.sqlite")
 
     def test_init_creates_runtime_layout(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -81,13 +94,22 @@ class InitCliTests(unittest.TestCase):
             target = Path(temp_dir)
             first = run_ccw("init", cwd=target)
             config_path = target / ".ccw" / "config.yaml"
+            database_path = target / ".ccw" / "index.sqlite"
             original_config = config_path.read_text(encoding="utf-8")
+            with sqlite3.connect(database_path) as connection:
+                connection.execute("INSERT INTO facts DEFAULT VALUES")
+                connection.commit()
 
             second = run_ccw("init", cwd=target)
 
             self.assertEqual(first.returncode, 0, first.stderr)
             self.assertEqual(second.returncode, 0, second.stderr)
             self.assertEqual(config_path.read_text(encoding="utf-8"), original_config)
+            with sqlite3.connect(database_path) as connection:
+                fact_count = connection.execute("SELECT COUNT(*) FROM facts").fetchone()
+
+            self.assertEqual(fact_count, (1,))
+            self.assert_schema_tables(database_path)
 
     def test_init_creates_loadable_config_file(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -133,6 +155,57 @@ class InitCliTests(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertTrue(result.stderr.startswith("Error: "))
             self.assertIn("Local state path exists as a file", result.stderr)
+
+    def test_init_fails_with_stable_error_when_compiled_directory_path_is_a_file(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            compiled_path = target / ".ccw" / "compiled"
+            compiled_path.parent.mkdir()
+            compiled_path.write_text("conflict", encoding="utf-8")
+
+            result = run_ccw("init", cwd=target)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertTrue(result.stderr.startswith("Error: "))
+            self.assertIn("Compiled artifact directory exists as a file", result.stderr)
+
+    def test_init_fails_with_stable_error_when_snapshots_directory_path_is_a_file(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            snapshots_path = target / ".ccw" / "snapshots"
+            snapshots_path.parent.mkdir()
+            snapshots_path.write_text("conflict", encoding="utf-8")
+
+            result = run_ccw("init", cwd=target)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertTrue(result.stderr.startswith("Error: "))
+            self.assertIn("Snapshots directory exists as a file", result.stderr)
+
+    def test_init_fails_with_stable_error_when_config_path_is_a_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            config_path = target / ".ccw" / "config.yaml"
+            config_path.mkdir(parents=True)
+
+            result = run_ccw("init", cwd=target)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertTrue(result.stderr.startswith("Error: "))
+            self.assertIn("Config path exists as a directory", result.stderr)
+
+    def test_init_fails_with_stable_error_when_index_database_path_is_a_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            database_path = target / ".ccw" / "index.sqlite"
+            database_path.mkdir(parents=True)
+
+            result = run_ccw("init", cwd=target)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertTrue(result.stderr.startswith("Error: "))
+            self.assertIn("Index database path exists as a directory", result.stderr)
+            self.assertFalse((target / ".ccw" / "config.yaml").exists())
 
     def test_installed_console_entrypoint_bootstraps_repo(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
