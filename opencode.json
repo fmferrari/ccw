@@ -1,0 +1,10 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": [
+    "AGENTS.md",
+    "wiki/AGENTS.md",
+    ".opencode/instructions/COPILOT_INSTRUCTIONS.instructions",
+    ".opencode/instructions/AGENTIC_PLAN_WORKFLOW.instructions"
+  ],
+  "lsp": true
+}
