@@ -37,21 +37,34 @@ artifacts instead of ad hoc chat context.
 Goal: ship an installable `ccw` CLI with `ccw init` and deterministic local
 state bootstrap under `.ccw/`.
 
-- [ ] Create the Python package and installable `ccw` entrypoint
-- [ ] Implement `ccw init` to create `.ccw/`, `compiled/`, and `snapshots/`
-- [ ] Bootstrap the SQLite schema for files, symbols, edges, facts, and episodes
-- [ ] Create a minimal config loader for `.ccw/config.yaml`
-- [ ] Add CLI tests for initialization, rerun safety, and schema creation
+- [x] Slice 1A: create the Python package and installable `ccw` entrypoint
+- [x] Slice 1A: implement `ccw init` to create `.ccw/`, `compiled/`, `snapshots/`, and `.ccw/config.yaml`
+- [x] Slice 1A: add CLI tests for initialization, rerun safety, invalid-target failure, config creation, non-writable-path failure, and no pre-schema SQLite bootstrap
+- [ ] Slice 1B (follow-on): bootstrap the SQLite schema for files, symbols, edges, facts, and episodes
+- [ ] Slice 1B (follow-on): add schema creation tests after the runtime layout contract is stable
+
+Next slice rationale:
+
+- Freeze the installable CLI and repo-local runtime layout before binding the implementation to an unfinished SQLite data model.
+- Keep invalid-path and idempotency behavior explicit now so later schema work cannot quietly redefine the `ccw init` contract.
 
 Acceptance criteria:
 
+- The installable `ccw` CLI can materialize the runtime layout and default config for a new repo without manual file creation
 - `ccw init` is idempotent
+- Invalid target paths or non-writable locations fail loudly
 - A new repo can create the full local state layout without manual SQL or file
   creation
 - The CLI surface is test-covered and installable from the repo
 
 Deliverable: a user can run `ccw init` and get a valid deterministic local
-state scaffold.
+state scaffold, with SQLite schema bootstrap landing in the immediate follow-on
+slice.
+
+Current status:
+
+- Phase 1A is implemented and validated.
+- The next active slice is Phase 1B schema bootstrap.
 
 ## Phase 2 - Deterministic repo inventory and indexing
 

@@ -5,6 +5,10 @@ Append-only record of vault changes. Each entry starts with
 
 ## 2026-05-23
 
+- architecture :: [[development-plan]] - marked Phase 1A runtime bootstrap complete and advanced the next active slice to Phase 1B schema bootstrap
+- architecture :: [[phase-1-deterministic-compiler-spec]] - recorded the shipped Phase 1A runtime bootstrap surfaces, validations, and explicit no-SQLite behavior
+- architecture :: [[phase-1-deterministic-compiler-spec]] - narrowed the active Phase 1 slice to installable CLI and `.ccw/` runtime bootstrap, deferring SQLite schema bootstrap after a premortem surfaced data-model coupling risk
+- architecture :: [[development-plan]] - split Phase 1 into next runtime-bootstrap work and follow-on schema-bootstrap work, with explicit failure-behavior acceptance criteria
 - architecture :: [[ccw-stack-companion-boundary]] - documented the ownership split between CCW core and the sibling `ccw-stack` repo for orchestration, harness adapters, and optional portable brain behavior
 - architecture :: [[ccw-mvp-prd]] - clarified that multi-harness orchestration and optional portable brain work live outside CCW core in `ccw-stack`
 - architecture :: [[development-plan]] - clarified that the Conductor-facing compiler contract should support the companion `ccw-stack` repo
