@@ -22,3 +22,8 @@ Append-only record of vault changes. Each entry starts with
 - architecture :: [[phase-1-deterministic-compiler-spec]] - advanced the active slice spec to Phase 1B schema bootstrap and recorded the shipped SQLite bootstrap contract and follow-on indexing direction
 - architecture :: [[development-plan]] - marked Phase 1 schema bootstrap complete and advanced the next active slice to Phase 2 deterministic repo inventory and indexing
 - architecture :: [[phase-1-deterministic-compiler-spec]] - recorded `python -m unittest` as the passing Phase 1B validation command after making default unittest discovery cover the repo suite
+- architecture :: [[phase-2a-deterministic-file-inventory-spec]] - created and then shipped the Phase 2A file-inventory contract for `ccw index`, deterministic `files` refresh, and placeholder-schema upgrade behavior
+- architecture :: [[development-plan]] - marked Phase 2A deterministic file inventory complete, recorded `python -m unittest` as the passing validation command, and left symbol extraction as the next Phase 2 follow-on work
+- architecture :: [[phase-1-deterministic-compiler-spec]] - archived the completed Phase 1B schema bootstrap spec after promoting Phase 2A as the active slice spec
+- architecture :: [[index]] - advanced the architecture index to the active Phase 2A file-inventory slice spec and archived the completed Phase 1 spec entry
+- architecture :: [[agentic-development-workflow]] - generalized the workflow artifact role from a single next-slice spec to the active slice spec used for implementation and closeout

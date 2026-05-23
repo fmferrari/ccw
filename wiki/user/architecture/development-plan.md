@@ -71,7 +71,10 @@ Current status:
 
 Goal: build the deterministic repository index that powers later compilation.
 
-- [ ] Walk the repo and persist file metadata, hashes, and detected language
+- [x] Slice 2A: implement `ccw index [path]` for deterministic repo walking and full `files` table refresh
+- [x] Slice 2A: persist repo-relative paths, SHA-256 content hashes, file sizes, and detected language in `files`
+- [x] Slice 2A: fail loudly when local `.ccw/` state is missing and exclude `.ccw/`, `.git/`, and symlinks from inventory
+- [x] Slice 2A: add fixture-backed tests for initial indexing, rerun stability, changed files, deleted files, explicit target paths, and missing-init failure
 - [ ] Extract symbols, imports, exports, and basic edges for Python and
   TypeScript/JavaScript
 - [ ] Index Markdown and JSON/YAML documents as searchable project artifacts
@@ -87,6 +90,13 @@ Acceptance criteria:
 
 Deliverable: `ccw index .` produces the deterministic substrate needed for
 context compilation.
+
+Current status:
+
+- Phase 2A deterministic file inventory and `files` table refresh is implemented and validated.
+- Validation command: `python -m unittest`
+- The active slice spec remains [[phase-2a-deterministic-file-inventory-spec]] until the next Phase 2 symbol-extraction spec is frozen.
+- Follow-on work: extract symbols, imports, exports, and basic edges after the deterministic file substrate, schema expansion path, and exclusion rules are now frozen in code and tests.
 
 ## Phase 3 - Explicit memory and task recipes
 

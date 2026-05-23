@@ -3,10 +3,12 @@ type: architecture
 tags: [architecture, spec, slice]
 created: 2026-05-23
 updated: 2026-05-23
-status: active
+status: archived
 ---
 
 # Phase 1B schema bootstrap spec
+
+Superseded by [[phase-2a-deterministic-file-inventory-spec]] for the next active implementation slice.
 
 ## Purpose
 

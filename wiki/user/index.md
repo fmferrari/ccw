@@ -14,7 +14,8 @@ This is the canonical committed vault for CCW.
 
 - [[ccw-mvp-prd]] - product intent, user stories, implementation decisions, and testing decisions
 - [[development-plan]] - phased roadmap and current execution status
-- [[phase-1-deterministic-compiler-spec]] - exact contract for the next implementation slice
+- [[phase-2a-deterministic-file-inventory-spec]] - exact contract and shipped notes for the active file-inventory slice
+- [[phase-1-deterministic-compiler-spec]] - archived contract for the completed Phase 1 schema bootstrap slice
 - [[ccw-stack-companion-boundary]] - ownership boundary between CCW core and the sibling `ccw-stack` orchestration repo
 - [[agentic-development-workflow]] - opencode-compatible workflow for planning, implementation, review, and handoff
 

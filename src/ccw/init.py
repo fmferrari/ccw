@@ -8,8 +8,7 @@ from ccw.schema import bootstrap_index_database
 
 
 def init_local_state(target: Path) -> Path:
-    resolved_target = target.expanduser().resolve()
-    _validate_target(resolved_target)
+    resolved_target = resolve_target_directory(target, description="Init target")
 
     state_dir = resolved_target / ".ccw"
     compiled_dir = state_dir / "compiled"
@@ -31,13 +30,31 @@ def init_local_state(target: Path) -> Path:
     return state_dir
 
 
-def _validate_target(target: Path) -> None:
+def resolve_target_directory(target: Path, description: str) -> Path:
+    resolved_target = target.expanduser().resolve()
+
+    _validate_target(resolved_target, description=description)
+
+    return resolved_target
+
+
+def require_initialized_local_state(target: Path) -> Path:
+    state_dir = target / ".ccw"
+    database_path = state_dir / "index.sqlite"
+
+    if not state_dir.is_dir() or not database_path.is_file():
+        raise ValueError(f"Local state is not initialized: {target}. Run 'ccw init' first.")
+
+    return database_path
+
+
+def _validate_target(target: Path, description: str) -> None:
     if not target.exists():
-        raise FileNotFoundError(f"Init target does not exist: {target}")
+        raise FileNotFoundError(f"{description} does not exist: {target}")
     if not target.is_dir():
-        raise NotADirectoryError(f"Init target is not a directory: {target}")
+        raise NotADirectoryError(f"{description} is not a directory: {target}")
     if not os.access(target, os.W_OK | os.X_OK):
-        raise PermissionError(f"Init target is not writable: {target}")
+        raise PermissionError(f"{description} is not writable: {target}")
 
 
 def _validate_runtime_paths(

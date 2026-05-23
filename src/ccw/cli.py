@@ -4,6 +4,7 @@ import argparse
 import sys
 from pathlib import Path
 
+from ccw.index import index_repository
 from ccw.init import init_local_state
 
 
@@ -13,6 +14,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     init_parser = subparsers.add_parser("init", help="Create repo-local CCW state")
     init_parser.add_argument("path", nargs="?", default=".", help="Init target path")
+
+    index_parser = subparsers.add_parser("index", help="Build deterministic repo inventory")
+    index_parser.add_argument("path", nargs="?", default=".", help="Index target path")
 
     return parser
 
@@ -24,6 +28,9 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.command == "init":
             init_local_state(Path(args.path))
+            return 0
+        if args.command == "index":
+            index_repository(Path(args.path))
             return 0
     except (FileNotFoundError, NotADirectoryError, PermissionError, ValueError) as error:
         print(f"Error: {error}", file=sys.stderr)
