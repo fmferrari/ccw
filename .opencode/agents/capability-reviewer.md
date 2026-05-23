@@ -13,7 +13,7 @@ Primary context:
 - `wiki/user/architecture/agentic-development-workflow.md`
 - `wiki/user/architecture/ccw-mvp-prd.md`
 - `wiki/user/architecture/development-plan.md`
-- `wiki/user/architecture/phase-1-deterministic-compiler-spec.md`
+- `wiki/user/architecture/phase-2a-deterministic-file-inventory-spec.md`
 - `CONTEXT.md`
 - `AGENTS.md`
 - `wiki/AGENTS.md`

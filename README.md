@@ -32,6 +32,7 @@ ccw update --run ./conductor/runs/latest
 
 - `wiki/user/architecture/ccw-mvp-prd.md`
 - `wiki/user/architecture/development-plan.md`
+- `wiki/user/architecture/phase-2a-deterministic-file-inventory-spec.md`
 - `wiki/user/architecture/phase-1-deterministic-compiler-spec.md`
 - `wiki/user/architecture/ccw-stack-companion-boundary.md`
 - `wiki/user/architecture/agentic-development-workflow.md`
@@ -40,6 +41,6 @@ ccw update --run ./conductor/runs/latest
 
 ## Current status
 
-This repo currently contains the planning, workflow, and opencode scaffolding
-for the compiler-first implementation slices, plus the documented boundary to
-the sibling `ccw-stack` orchestration repo.
+This repo now ships `ccw init` for deterministic local-state bootstrap and
+`ccw index` for deterministic file inventory refresh into `.ccw/index.sqlite`,
+alongside the planning and workflow artifacts for later compiler slices.

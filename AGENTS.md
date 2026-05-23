@@ -57,7 +57,7 @@ Only then open `README.md` or deeper architecture docs as needed.
 
 - Product intent: `wiki/user/architecture/ccw-mvp-prd.md`
 - Roadmap: `wiki/user/architecture/development-plan.md`
-- Next exact slice: `wiki/user/architecture/phase-1-deterministic-compiler-spec.md`
+- Active slice spec: `wiki/user/architecture/phase-2a-deterministic-file-inventory-spec.md`
 - Companion boundary: `wiki/user/architecture/ccw-stack-companion-boundary.md`
 - Delivery workflow: `wiki/user/architecture/agentic-development-workflow.md`
 - Hard decision log: `docs/adr/`
