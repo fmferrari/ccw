@@ -36,10 +36,21 @@ An append-only record of a completed task or run outcome, including touched
 files, summary, and timestamp.
 _Avoid_: raw chat transcript
 
+**Local state**:
+The repo-local runtime files under `.ccw/` that hold config, the index
+database, compiled artifacts, snapshots, and append-only memory for one
+repository.
+_Avoid_: source-of-truth docs, global cache
+
 **Compiled context**:
 The bounded markdown artifact produced for a task from indexed repo evidence,
 facts, constraints, and exact snippets.
 _Avoid_: free-form prompt dump
+
+**Compiled artifact**:
+The on-disk file that stores one compiled context instance under CCW local
+state.
+_Avoid_: ephemeral prompt text, chat transcript
 
 **Compression layer**:
 An optional LLM post-process that reduces wording after deterministic context is
@@ -59,9 +70,11 @@ _Avoid_: ad hoc prompt
 
 - **Conductor** runs **CCW** as a script step.
 - **CCW Stack** orchestrates harness execution around **CCW** artifacts.
+- **CCW** materializes **local state** per repository under `.ccw/`.
+- A **compiled artifact** stores one **compiled context**.
 - The **repo index** and **facts** feed the **compiled context**.
 - The **compression layer** can only rewrite an existing **compiled context**.
-- **Episodes** update memory after a completed run.
+- **Episodes** update memory inside **local state** after a completed run.
 
 ## Example Dialogue
 
