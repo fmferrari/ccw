@@ -1,0 +1,153 @@
+---
+type: architecture
+tags: [architecture, plan, iterations]
+created: 2026-05-23
+updated: 2026-05-23
+status: active
+---
+
+# Development plan
+
+Roadmap from an empty repo to a working deterministic context compiler that can
+feed small-window execution models through Microsoft Conductor.
+
+The first job is not clever retrieval. It is creating a clean artifact flow:
+repo scaffold, explicit vocabulary, PRD, roadmap, ADRs, slice specs, and
+opencode workflow assets. After that, implementation should move from local CLI
+bootstrap to deterministic indexing, then to context compilation, validation,
+Conductor integration, and finally optional compression plus post-run memory
+updates.
+
+## Phase 0 - Repo and workflow scaffold (completed)
+
+Goal: give the repo a repeatable planning and execution discipline for CCW.
+
+- [x] Create root `AGENTS.md`, `wiki/AGENTS.md`, and `CONTEXT.md`
+- [x] Create a local PRD, roadmap, next-slice spec, and agentic workflow doc
+- [x] Import opencode agents and skills from the reference repo and retarget them to CCW
+- [x] Document ADR and roadmap conventions with example templates
+- [x] Record the first hard architecture decision in `docs/adr/`
+- [x] Freeze the ownership boundary between CCW core and the sibling `ccw-stack` orchestration repo
+
+Deliverable: future work in this repo can be planned and executed through local
+artifacts instead of ad hoc chat context.
+
+## Phase 1 - CLI scaffold and local state bootstrap (current)
+
+Goal: ship an installable `ccw` CLI with `ccw init` and deterministic local
+state bootstrap under `.ccw/`.
+
+- [ ] Create the Python package and installable `ccw` entrypoint
+- [ ] Implement `ccw init` to create `.ccw/`, `compiled/`, and `snapshots/`
+- [ ] Bootstrap the SQLite schema for files, symbols, edges, facts, and episodes
+- [ ] Create a minimal config loader for `.ccw/config.yaml`
+- [ ] Add CLI tests for initialization, rerun safety, and schema creation
+
+Acceptance criteria:
+
+- `ccw init` is idempotent
+- A new repo can create the full local state layout without manual SQL or file
+  creation
+- The CLI surface is test-covered and installable from the repo
+
+Deliverable: a user can run `ccw init` and get a valid deterministic local
+state scaffold.
+
+## Phase 2 - Deterministic repo inventory and indexing
+
+Goal: build the deterministic repository index that powers later compilation.
+
+- [ ] Walk the repo and persist file metadata, hashes, and detected language
+- [ ] Extract symbols, imports, exports, and basic edges for Python and
+  TypeScript/JavaScript
+- [ ] Index Markdown and JSON/YAML documents as searchable project artifacts
+- [ ] Capture git recency and ownership signals needed for ranking
+- [ ] Map tests to files when naming or import signals are available
+- [ ] Add fixture repos and regression tests for indexing output
+
+Acceptance criteria:
+
+- Re-indexing updates changed files deterministically
+- Supported languages produce stable metadata and symbol output
+- Index results are inspectable through SQLite and artifact files
+
+Deliverable: `ccw index .` produces the deterministic substrate needed for
+context compilation.
+
+## Phase 3 - Explicit memory and task recipes
+
+Goal: add deterministic project memory and task classification.
+
+- [ ] Implement append-only facts storage and `ccw facts add`
+- [ ] Implement append-only episodes storage for completed runs
+- [ ] Add a deterministic task classifier for bug fix, implementation, review,
+  and refactor modes
+- [ ] Define compile recipes and budget allocation by task mode
+- [ ] Add tests for fact persistence, episode persistence, and task routing
+
+Acceptance criteria:
+
+- Facts remain explicit and low-inference
+- Task classification stays deterministic and explainable
+- Recipe selection can be reproduced from input text alone
+
+Deliverable: compile behavior can depend on explicit project memory and a stable
+task mode.
+
+## Phase 4 - Context compiler and validator
+
+Goal: generate inspectable task-scoped context artifacts under a strict budget.
+
+- [ ] Rank relevant files, symbols, tests, and constraints deterministically
+- [ ] Emit the structured compiled-context markdown format
+- [ ] Add exact snippet extraction with stable file anchors
+- [ ] Implement `ccw compile --task ... --budget ... --out ...`
+- [ ] Implement `ccw validate` for compiled artifacts
+- [ ] Add golden tests for ranking, budgeting, and rendered output
+
+Acceptance criteria:
+
+- The compiled artifact includes task, project state, relevant files, symbol
+  graph, snippets, and constraints
+- Validation catches malformed or unsupported output
+- Golden tests show stable output for fixture tasks
+
+Deliverable: `ccw compile` produces a bounded, inspectable context artifact for
+execution models.
+
+## Phase 5 - Conductor integration
+
+Goal: make CCW a first-class deterministic step inside Conductor workflows.
+
+- [ ] Add `ccw conductor init` for a starter workflow scaffold
+- [ ] Ship a sample `ccw-code-task` workflow that indexes and compiles context
+- [ ] Support workflow-friendly file outputs for compiled artifacts
+- [ ] Add `ccw update --run ...` for post-run memory updates
+- [ ] Document the integration path for the companion `ccw-stack` planner, implementer, and reviewer workflows
+
+Acceptance criteria:
+
+- A Conductor workflow can call `ccw index` and `ccw compile` directly
+- The compiled artifact is consumable by later workflow steps
+- Post-run updates can attach the resulting decision and file-change evidence
+
+Deliverable: CCW fits cleanly into a deterministic Conductor workflow without
+becoming the workflow engine.
+
+## Phase 6 - Optional compression and post-run learning
+
+Goal: add the optional LLM optimization layer without weakening determinism.
+
+- [ ] Implement `ccw compress --in ... --budget ...`
+- [ ] Validate compressed artifacts for no new files, symbols, or constraints
+- [ ] Extend `ccw update` with diff, tests, and decision inputs
+- [ ] Add regression tests for compressor safety and update integrity
+
+Acceptance criteria:
+
+- Compression never becomes the source of truth
+- Validation fails loud on invented facts or dropped required constraints
+- Post-run updates enrich future compile steps with explicit episode history
+
+Deliverable: CCW can optimize prompt size and learn from completed runs while
+keeping deterministic truth boundaries intact.

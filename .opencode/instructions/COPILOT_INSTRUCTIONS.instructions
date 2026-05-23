@@ -1,0 +1,81 @@
+# CCW Project - OpenCode Instructions
+
+## 1. Wiki-first knowledge management
+- The `wiki/` directory is the durable project memory for architecture,
+  roadmap, and decision history, following the Karpathy LLM-Wiki pattern.
+- All agent actions that touch project knowledge should follow the retrieval
+  contract:
+  1. **Point:** state what you are looking for.
+  2. **Query:** use `rg` or local search tools.
+  3. **Read:** open only the pages that matter.
+  4. **Write:** edit or create the relevant local artifact.
+  5. **Log:** append a line to `wiki/user/log.md` for every meaningful change.
+  6. **Validate:** check frontmatter, dates, and wikilinks by inspection until
+     dedicated wiki tooling exists in this repo.
+
+## 2. Knowledge structure
+- **Canonical vault:** `wiki/user/`
+  - **Architecture:** `wiki/user/architecture/` - PRDs, plans, specs, workflow docs
+  - **Ideas:** `wiki/user/ideas/` - future work and captured references
+  - **Ops:** `wiki/user/ops/` - operational and handoff notes
+  - **Log:** `wiki/user/log.md` - append-only change record
+- **Decision records:** `docs/adr/`
+- **Vocabulary:** `CONTEXT.md`
+
+## 3. Non-negotiables
+- **Deterministic first:** indexing, memory, compile, validate, and update must
+  work without an LLM.
+- **Keep orchestration out of core:** harness adapters, workflow packaging, and
+  any optional portable brain belong in the companion `ccw-stack` repo.
+- **No vector store:** retrieval is grep, frontmatter, and explicit artifacts.
+- **Frontmatter required:** every canonical wiki page except `wiki/user/log.md`
+  must have YAML frontmatter.
+- **Wikilinks:** use `[[page]]` for intra-vault references.
+- **Real dates:** use actual timestamps for `created`, `updated`, and log
+  entries.
+- **Per-directory AGENTS.md:** subdirectory rules override root rules.
+- **Optional LLM only:** any LLM-assisted step must stay outside the critical
+  path unless the deterministic validation contract is explicit.
+
+## 4. Project root discipline
+- Treat `/Users/felipeferrari/Documents/ai/ccw` as the repo root for this
+  project.
+- Before running repo-level commands, anchor on this root by checking for
+  `opencode.json`, `AGENTS.md`, `wiki/`, `docs/adr/`, and `CONTEXT.md`.
+- Run repo-wide commands from the project root or the relevant subdirectory,
+  not from `/`, `~`, or another parent.
+
+## 5. Product shape
+- `Microsoft Conductor` is the deterministic workflow orchestrator.
+- `CCW` is the deterministic context compiler and post-run update engine.
+- `CCW Stack` is the companion repo for orchestration, harness adapters, and
+  optional portable brain behavior.
+- Small-window or low-cost models consume CCW artifacts as execution backends.
+- `.ccw/` is runtime state, not the source-of-truth product documentation.
+- The optional compression layer may reduce wording, but must not invent facts.
+
+## 6. Development workflow
+- Keep PRD, roadmap, slice spec, ADR, and vocabulary artifacts separate.
+- Update the relevant wiki docs and `wiki/user/log.md` when scope or completion
+  meaningfully changes.
+- Use project-native validation. If a full test suite exists, run it before
+  calling a slice done unless the user explicitly narrows validation.
+- If no full suite exists yet, run the strongest deterministic checks available
+  and record the gap clearly.
+
+## 7. Plan delivery agents
+- This repo keeps exactly three custom agents:
+  - `capability-plan-manager`
+  - `capability-developer`
+  - `capability-reviewer`
+- Use that same trio for roadmap work, slice planning, implementation, and
+  review.
+- Supporting artifacts for that flow:
+  - `wiki/user/architecture/ccw-mvp-prd.md`
+  - `wiki/user/architecture/development-plan.md`
+  - `wiki/user/architecture/phase-1-deterministic-compiler-spec.md`
+  - `wiki/user/architecture/ccw-stack-companion-boundary.md`
+  - `wiki/user/architecture/agentic-development-workflow.md`
+
+This instruction set keeps work aligned with CCW's deterministic architecture,
+local artifact discipline, and opencode workflow.

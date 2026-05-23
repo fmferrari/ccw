@@ -1,0 +1,66 @@
+# Agentic Plan Workflow
+
+Use the repo workflow in `wiki/user/architecture/agentic-development-workflow.md`
+when the user is shaping a feature, architecture direction, or implementation
+plan.
+
+## Default sequence
+
+1. Stabilize vocabulary and architecture language.
+   - Use `grill-with-docs` for design pressure testing.
+   - Update `CONTEXT.md` or the relevant wiki docs inline.
+2. Record hard decisions in an ADR when the decision is hard to reverse.
+3. Turn the resolved context into a local PRD.
+   - Follow the `to-prd` skill logic.
+   - Save locally under `wiki/user/architecture/`.
+4. Turn the PRD into a roadmap and, when needed, a slice spec.
+5. Run `premortem` on the proposed slice before freezing it, especially for
+   determinism, indexing, storage, adapter, or migration work.
+6. Make the slice easy to parallelize by shaping independently reviewable work packets with explicit dependencies and ownership boundaries.
+7. Execute through the planning manager, developer manager, and reviewer manager agents.
+   - developer manager: execute or parallelize safe work packets, then recombine them
+   - reviewer manager: review packets individually, then review the recombined result
+8. Use `handoff` when the session must stop before delivery is complete.
+9. Before calling a slice done, update the relevant roadmap/spec/checklist
+   artifacts and the wiki log, then run the full project validation available
+   in the repo unless the user explicitly scoped validation down. If no full
+   suite exists yet, run the strongest deterministic checks available and record
+   the gap.
+10. If the session includes commit work, create a commit only after step 9 is
+    complete.
+
+## Artifact discipline
+
+- PRD: product intent, user stories, implementation and testing decisions
+- roadmap: phased tasks and acceptance criteria
+- slice spec: exact next implementation contract
+- ADR: hard-to-reverse architecture decision
+- `CONTEXT.md`: stable domain and architecture language
+
+Do not collapse these documents into one giant plan.
+
+## Agent selection
+
+- Planning work: use `capability-plan-manager`
+- Implementation work: use `capability-developer`
+- Review work: use `capability-reviewer`
+
+## Packet execution
+
+- `capability-developer` should keep work packet boundaries explicit and parallelize safe packets when dependencies allow.
+- `capability-reviewer` should review packet results independently, then review the recombined result.
+
+## Completion hygiene
+
+- Do not claim a slice is complete until the relevant roadmap/spec/checklist files reflect the finished work.
+- Do not claim a slice is complete until the wiki log is updated.
+- Default final validation is the full project validation available in the repo.
+- Create a commit after marking roadmap/spec/checklist tasks complete only when
+  the current session explicitly includes commit work.
+
+## Core principles
+
+- preserve reusable substrate
+- discard scaffolding that no longer fits
+- keep readable compiled-context artifacts first-class
+- avoid chunk dumping in answers, overviews, and compiled output
