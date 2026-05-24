@@ -16,7 +16,7 @@ sys.path.insert(0, str(ROOT / "src"))
 from ccw.config import DEFAULT_CONFIG, load_config
 
 
-EXPECTED_SCHEMA_TABLES = {"artifacts", "classifications", "edges", "episodes", "facts", "files", "symbols"}
+EXPECTED_SCHEMA_TABLES = {"artifacts", "classifications", "compilations", "edges", "episodes", "facts", "files", "symbols"}
 
 
 def run_ccw(*args: str, cwd: Path) -> subprocess.CompletedProcess[str]:
