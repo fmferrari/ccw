@@ -16,6 +16,11 @@ Append-only record of vault changes. Each entry starts with
 - architecture :: [[index]] - advanced the wiki index to the active Phase 3A explicit-facts spec and archived the completed Phase 2 closeout spec entry
 - architecture :: [[architecture/sdlc/agentic-development-workflow]] - advanced the workflow artifact reference from the completed Phase 2C closeout spec to the active Phase 3A explicit-facts spec
 - architecture :: [[architecture/sdlc/agentic-development-workflow]] - aligned opencode agent context references to the moved SDLC workflow path under `architecture/sdlc/`
+- architecture :: [[phase-3b-explicit-episodes-write-path-spec]] - created and then shipped the Phase 3B contract for explicit append-only episodes, placeholder-table upgrade behavior, and stable validation for `ccw episodes add`
+- architecture :: [[development-plan]] - marked Phase 3B explicit episodes write path complete, recorded `python -m unittest` as the passing validation command, and left task classification as the next Phase 3 follow-on work
+- architecture :: [[phase-3a-explicit-facts-write-path-spec]] - archived the completed Phase 3A facts-write spec after promoting Phase 3B as the active slice spec
+- architecture :: [[index]] - advanced the wiki index to the active Phase 3B explicit-episodes spec and archived the completed Phase 3A facts-write spec entry
+- architecture :: [[architecture/sdlc/agentic-development-workflow]] - advanced the workflow artifact reference from the completed Phase 3A facts-write spec to the active Phase 3B explicit-episodes spec
 
 ## 2026-05-23
 

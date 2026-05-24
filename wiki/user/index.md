@@ -22,7 +22,8 @@ This is the canonical committed vault for CCW.
 
 ## Operations: specs
 
-- [[phase-3a-explicit-facts-write-path-spec]] — exact contract and shipped notes for the active Phase 3 explicit-facts slice
+- [[phase-3b-explicit-episodes-write-path-spec]] — exact contract and shipped notes for the active Phase 3 explicit-episodes slice
+- [[phase-3a-explicit-facts-write-path-spec]] — archived contract for the completed explicit-facts slice
 - [[phase-2c-deterministic-multi-language-graph-spec]] — archived contract for the completed Phase 2 closeout slice
 - [[phase-2b-python-top-level-symbol-inventory-spec]] — archived contract for the completed Python symbol-inventory slice
 - [[phase-2a-deterministic-file-inventory-spec]] — archived contract for the completed file-inventory slice

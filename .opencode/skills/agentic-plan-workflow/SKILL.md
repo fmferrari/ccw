@@ -52,5 +52,5 @@ repo, especially around architecture or plan execution.
 - `wiki/user/architecture/sdlc/agentic-development-workflow.md`
 - `wiki/user/architecture/ccw-mvp-prd.md`
 - `wiki/user/ops/plans/development-plan.md`
-- `wiki/user/ops/specs/phase-3a-explicit-facts-write-path-spec.md`
+- `wiki/user/ops/specs/phase-3b-explicit-episodes-write-path-spec.md`
 - `CONTEXT.md`

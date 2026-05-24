@@ -3,10 +3,13 @@ type: architecture
 tags: [architecture, spec, slice, memory, facts]
 created: 2026-05-24
 updated: 2026-05-24
-status: active
+status: archived
 ---
 
 # Phase 3A explicit facts write path spec
+
+Completed explicit-facts slice. Superseded by
+[[phase-3b-explicit-episodes-write-path-spec]] for the active Phase 3 work.
 
 ## Purpose
 

@@ -110,7 +110,10 @@ Goal: add deterministic project memory and task classification.
 - [x] Slice 3A: freeze the first shipped fact record shape and additive upgrade path for the placeholder `facts` table
 - [x] Slice 3A: reject empty or unsupported fact inputs while preserving append-only behavior
 - [x] Slice 3A: add CLI tests for fact persistence, repeated appends, missing-init failure, and placeholder-table upgrade behavior
-- [ ] Implement append-only episodes storage for completed runs
+- [x] Slice 3B: implement append-only episodes persistence and `ccw episodes add`
+- [x] Slice 3B: freeze the first shipped episode record shape and additive upgrade path for the placeholder `episodes` table
+- [x] Slice 3B: require explicit summary plus touched files while preserving append-only behavior
+- [x] Slice 3B: add CLI tests for episode persistence, repeated appends, missing-init failure, and placeholder-table upgrade behavior
 - [ ] Add a deterministic task classifier for bug fix, implementation, review,
   and refactor modes
 - [ ] Define compile recipes and budget allocation by task mode
@@ -129,9 +132,10 @@ Current status:
 
 - Phase 2 is complete and validated.
 - Validation command: `python -m unittest`
-- The active slice spec is now [[phase-3a-explicit-facts-write-path-spec]].
+- The active slice spec is now [[phase-3b-explicit-episodes-write-path-spec]].
 - Phase 3A explicit facts write path is implemented and validated.
-- Follow-on work: add append-only episodes next, then task classification and compile recipes on top of explicit project memory.
+- Phase 3B explicit episodes write path is implemented and validated.
+- Follow-on work: add deterministic task classification next, then compile recipes and budget allocation on top of explicit facts and episodes.
 
 ## Phase 4 - Context compiler and validator
 
