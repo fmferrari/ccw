@@ -4,7 +4,7 @@ import sqlite3
 from pathlib import Path
 
 
-SCHEMA_TABLES = ("files", "symbols", "edges", "artifacts", "facts", "episodes", "classifications")
+SCHEMA_TABLES = ("files", "symbols", "edges", "artifacts", "facts", "episodes", "classifications", "compilations")
 
 FILES_REQUIRED_COLUMNS = ("id", "path", "content_hash", "size_bytes", "language")
 FILES_OPTIONAL_COLUMNS = (
@@ -35,6 +35,14 @@ CLASSIFICATIONS_OPTIONAL_COLUMNS = (
     ("mode", "TEXT"),
     ("created_at", "TEXT"),
 )
+COMPILATIONS_COLUMNS = ("id", "task", "mode", "budget", "output_path", "created_at")
+COMPILATIONS_OPTIONAL_COLUMNS = (
+    ("task", "TEXT"),
+    ("mode", "TEXT"),
+    ("budget", "INTEGER"),
+    ("output_path", "TEXT"),
+    ("created_at", "TEXT"),
+)
 
 SCHEMA_SQL = "\n".join(
     [
@@ -61,6 +69,7 @@ def bootstrap_index_database(path: Path) -> Path:
             _ensure_facts_table(connection)
             _ensure_episodes_table(connection)
             _ensure_classifications_table(connection)
+            _ensure_compilations_table(connection)
     except sqlite3.Error as error:
         if created_database and path.exists():
             path.unlink()
@@ -204,6 +213,18 @@ def _ensure_classifications_table(connection: sqlite3.Connection) -> None:
         raise ValueError("Unexpected classifications table schema")
 
     _ensure_optional_columns(connection, "classifications", column_names, CLASSIFICATIONS_OPTIONAL_COLUMNS)
+
+
+def _ensure_compilations_table(connection: sqlite3.Connection) -> None:
+    column_names = tuple(_read_table_columns(connection, "compilations"))
+
+    if set(COMPILATIONS_COLUMNS).issubset(column_names):
+        return
+
+    if column_names != ("id",):
+        raise ValueError("Unexpected compilations table schema")
+
+    _ensure_optional_columns(connection, "compilations", column_names, COMPILATIONS_OPTIONAL_COLUMNS)
 
 
 def _ensure_optional_columns(

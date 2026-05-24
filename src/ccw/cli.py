@@ -5,10 +5,12 @@ import sys
 from pathlib import Path
 
 from ccw.classify import classify as classify_text
+from ccw.compile import do_compile
 from ccw.episodes import add_episode
 from ccw.facts import add_fact
 from ccw.index import index_repository
 from ccw.init import init_local_state
+from ccw.validate import validate_compiled_artifact
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -41,6 +43,17 @@ def build_parser() -> argparse.ArgumentParser:
     classify_parser.add_argument("text", help="Task description text")
     classify_parser.add_argument("path", nargs="?", default=".", help="Classify target path")
 
+    compile_parser = subparsers.add_parser("compile", help="Compile task-scoped context artifact")
+    compile_parser.add_argument("--task", required=True, help="Task description text")
+    compile_parser.add_argument("--budget", type=int, default=None, help="Override token budget")
+    compile_parser.add_argument("--out", type=Path, default=None, help="Output artifact path")
+    compile_parser.add_argument("--mode", default=None, help="Explicit classification mode (skip auto-classify)")
+    compile_parser.add_argument("path", nargs="?", default=".", help="Compile target path")
+
+    validate_parser = subparsers.add_parser("validate", help="Validate a compiled context artifact")
+    validate_parser.add_argument("artifact", type=Path, help="Compiled artifact path to validate")
+    validate_parser.add_argument("path", nargs="?", default=".", help="Target repository path")
+
     return parser
 
 
@@ -64,6 +77,38 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "classify":
             mode = classify_text(Path(args.path), args.text)
             print(mode)
+            return 0
+        if args.command == "compile":
+            output_path = do_compile(
+                target=Path(args.path),
+                task_description=args.task,
+                output_path=args.out,
+                mode=args.mode,
+                budget=args.budget,
+            )
+            print(f"Compiled context written to: {output_path}")
+            return 0
+        if args.command == "validate":
+            from ccw.init import require_initialized_local_state, resolve_target_directory
+
+            resolved_target = resolve_target_directory(Path(args.path), description="Validate target")
+
+            database_path = None
+            try:
+                database_path = require_initialized_local_state(resolved_target)
+            except ValueError:
+                pass
+
+            errors = validate_compiled_artifact(
+                artifact_path=args.artifact,
+                database_path=database_path,
+            )
+
+            if errors:
+                for error in errors:
+                    print(f"Error: {error}", file=sys.stderr)
+                return 1
+            print("Valid compiled artifact")
             return 0
     except (FileNotFoundError, NotADirectoryError, PermissionError, ValueError) as error:
         print(f"Error: {error}", file=sys.stderr)

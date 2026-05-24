@@ -144,11 +144,11 @@ Current status:
 
 Goal: generate inspectable task-scoped context artifacts under a strict budget.
 
-- [ ] Packet A: compiler core — dataclasses, ranking, snippets, composition
-- [ ] Packet B: markdown renderer for CompiledContext
-- [ ] Packet C: `ccw compile --task ... --budget ... --out ... --mode ...`
-- [ ] Packet D: `ccw validate <artifact>` CLI surface
-- [ ] Packet E: golden fixture tests for rendered output
+- [x] Packet A: compiler core — dataclasses, ranking, snippets, composition
+- [x] Packet B: markdown renderer for CompiledContext
+- [x] Packet C: `ccw compile --task ... --budget ... --out ... --mode ...`
+- [x] Packet D: `ccw validate <artifact>` CLI surface
+- [x] Packet E: golden fixture tests for rendered output
 
 Acceptance criteria:
 
@@ -162,9 +162,20 @@ execution models.
 
 Current status:
 
-- Phase 4 slice spec is frozen after premortem.
-- The active slice spec is [[phase-4-context-compiler-spec]].
-- Next: Packet A implementation — compiler core dataclasses, ranking, snippet extraction, and composition.
+- All 5 Phase 4 work packets are implemented and validated.
+- `rank_files()`: deterministic keyword-overlap + fuzzy prefix + symbol-name + git-freshness ranking
+- `extract_snippets()`: line-anchored snippet extraction with symbol anchors and budget truncation
+- `compile_context()`: composition of ranking, snippets, recipe, budget, facts, episodes, constraints
+- `render_compiled_context()`: structured markdown with YAML frontmatter and estimated token footer
+- `ccw compile --task ... --mode ... --budget ... --out ...`: full CLI wired through classify → recipe → budget → compile → render → write
+- `ccw validate <path>`: frontmatter, section, and invented-path validation
+- Golden tests: snapshot comparison + structural assertions
+- Performance guard: compile_context completes in 0.038s on 200-file fixture (limit: 0.5s)
+- Schema: `compilations` table added with additive optional-column pattern
+- Validation command: `python -m unittest` (102 tests, 1 pre-existing fixture failure)
+- New test files: `tests/test_compile.py` (15 tests), `tests/test_cli_compile.py` (10 tests)
+- Active slice spec: [[phase-4-context-compiler-spec]] (frozen after premortem, now implemented)
+- Next: Phase 5 Conductor integration or follow-on Phase 4 improvements
 
 ## Phase 5 - Conductor integration
 

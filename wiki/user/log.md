@@ -10,6 +10,8 @@ Append-only record of vault changes. Each entry starts with
 - architecture :: [[phase-3d-recipe-and-budget-spec]] — archived the completed Phase 3D recipe-and-budget spec after promoting Phase 4 as the active slice spec
 - architecture :: [[index]] — advanced the wiki index to the active Phase 4 context-compiler spec and archived the completed Phase 3D recipe-and-budget spec entry
 - architecture :: [[architecture/sdlc/agentic-development-workflow]] — advanced the workflow artifact reference from the completed Phase 3D recipe-and-budget spec to the active Phase 4 context-compiler spec
+- architecture :: [[phase-4-context-compiler-spec]] — implemented all 5 Phase 4 work packets (A-E): ranking, snippets, composition, markdown renderer, `ccw compile` CLI, `ccw validate` CLI, compilations schema, golden tests, perf guard; 23 new tests, 102 total
+- architecture :: [[development-plan]] — marked all Phase 4 work packets complete, advanced to Phase 5 follow-on
 
 - architecture :: [[phase-3c-deterministic-task-classifier-spec]] - created and shipped the Phase 3C contract for deterministic keyword-based task classification, classification-row persistence in the `classifications` table, additive placeholder-table upgrade behavior, tie-breaking by definition-order priority with implementation default, and stable validation for `ccw classify`
 - architecture :: [[development-plan]] - marked Phase 3C deterministic task classifier complete, recorded `python -m unittest` as the passing validation command, and left compile recipes and budget allocation as the next Phase 3 follow-on work
