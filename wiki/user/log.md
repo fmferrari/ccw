@@ -3,6 +3,14 @@
 Append-only record of vault changes. Each entry starts with
 `- <kind> :: [[page]] - short note` under a date header.
 
+## 2026-05-24
+
+- ops :: [[index]] - restructured wiki/user/ to separate architecture (code and sdlc subfolders) from operations (plans, specs, adr subfolders) following the wikiagent pattern
+- ops :: [[ops/plans/index]] - moved development-plan to ops/plans/
+- ops :: [[ops/specs/index]] - moved all phase specs to ops/specs/
+- architecture :: [[architecture/sdlc/index]] - moved agentic-development-workflow to architecture/sdlc/
+- architecture :: [[architecture/code/index]] - created code architecture subfolder for PRD and companion boundary docs
+
 ## 2026-05-23
 
 - architecture :: [[development-plan]] - marked Phase 1A runtime bootstrap complete and advanced the next active slice to Phase 1B schema bootstrap

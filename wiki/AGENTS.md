@@ -15,7 +15,9 @@ Every agent action that touches project knowledge should follow this loop:
 3. **Read.** Open the pages that matter. If the question needs more than 3
    pages, split it first.
 4. **Write.** Edit an existing page or create a new one under
-   `wiki/user/architecture/`, `wiki/user/ideas/`, or `wiki/user/ops/`.
+   `wiki/user/architecture/code/`, `wiki/user/architecture/sdlc/`,
+   `wiki/user/ops/plans/`, `wiki/user/ops/specs/`, `wiki/user/ops/adr/`,
+   `wiki/user/ideas/`, or the appropriate ops subfolder.
 5. **Log.** Append one line under today's date in `wiki/user/log.md` using the
    format `- <kind> :: [[page]] - short note`.
 6. **Validate.** Check frontmatter, wikilinks, and dates by inspection until
