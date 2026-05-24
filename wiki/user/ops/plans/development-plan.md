@@ -114,10 +114,12 @@ Goal: add deterministic project memory and task classification.
 - [x] Slice 3B: freeze the first shipped episode record shape and additive upgrade path for the placeholder `episodes` table
 - [x] Slice 3B: require explicit summary plus touched files while preserving append-only behavior
 - [x] Slice 3B: add CLI tests for episode persistence, repeated appends, missing-init failure, and placeholder-table upgrade behavior
-- [ ] Add a deterministic task classifier for bug fix, implementation, review,
-  and refactor modes
+- [x] Slice 3C: implement deterministic task classifier for bug fix, implementation, review, and refactor modes
+- [x] Slice 3C: freeze the first shipped classification record shape and additive upgrade path for the placeholder `classifications` table
+- [x] Slice 3C: classify by keyword matching with tie-breaking and implementation default
+- [x] Slice 3C: add CLI tests for all four modes, default mode, append-only, missing-init failure, empty-text rejection, and placeholder-table upgrade behavior
 - [ ] Define compile recipes and budget allocation by task mode
-- [ ] Add tests for fact persistence, episode persistence, and task routing
+- [ ] Add tests for compile recipes and budget allocation
 
 Acceptance criteria:
 
@@ -130,12 +132,13 @@ task mode.
 
 Current status:
 
-- Phase 2 is complete and validated.
+- Phase 3 is implemented through fact persistence, episode persistence, and deterministic task classification.
 - Validation command: `python -m unittest`
-- The active slice spec is now [[phase-3b-explicit-episodes-write-path-spec]].
+- The active slice spec is now [[phase-3c-deterministic-task-classifier-spec]].
 - Phase 3A explicit facts write path is implemented and validated.
 - Phase 3B explicit episodes write path is implemented and validated.
-- Follow-on work: add deterministic task classification next, then compile recipes and budget allocation on top of explicit facts and episodes.
+- Phase 3C deterministic task classifier is implemented and validated.
+- Follow-on work: define compile recipes and budget allocation on top of explicit facts, episodes, and task classification.
 
 ## Phase 4 - Context compiler and validator
 

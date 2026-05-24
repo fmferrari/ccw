@@ -2,7 +2,7 @@
 type: architecture
 tags: [index]
 created: 2026-05-23
-updated: 2026-05-24
+updated: 2026-05-25
 status: active
 ---
 
@@ -22,7 +22,8 @@ This is the canonical committed vault for CCW.
 
 ## Operations: specs
 
-- [[phase-3b-explicit-episodes-write-path-spec]] — exact contract and shipped notes for the active Phase 3 explicit-episodes slice
+- [[phase-3c-deterministic-task-classifier-spec]] — exact contract and shipped notes for the active Phase 3 task-classifier slice
+- [[phase-3b-explicit-episodes-write-path-spec]] — archived contract for the completed explicit-episodes slice
 - [[phase-3a-explicit-facts-write-path-spec]] — archived contract for the completed explicit-facts slice
 - [[phase-2c-deterministic-multi-language-graph-spec]] — archived contract for the completed Phase 2 closeout slice
 - [[phase-2b-python-top-level-symbol-inventory-spec]] — archived contract for the completed Python symbol-inventory slice

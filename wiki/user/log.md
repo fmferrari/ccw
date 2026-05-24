@@ -3,6 +3,14 @@
 Append-only record of vault changes. Each entry starts with
 `- <kind> :: [[page]] - short note` under a date header.
 
+## 2026-05-25
+
+- architecture :: [[phase-3c-deterministic-task-classifier-spec]] - created and shipped the Phase 3C contract for deterministic keyword-based task classification, classification-row persistence in the `classifications` table, additive placeholder-table upgrade behavior, tie-breaking by definition-order priority with implementation default, and stable validation for `ccw classify`
+- architecture :: [[development-plan]] - marked Phase 3C deterministic task classifier complete, recorded `python -m unittest` as the passing validation command, and left compile recipes and budget allocation as the next Phase 3 follow-on work
+- architecture :: [[phase-3b-explicit-episodes-write-path-spec]] - archived the completed Phase 3B episodes-write spec after promoting Phase 3C as the active slice spec
+- architecture :: [[index]] - advanced the wiki index to the active Phase 3C task-classifier spec and archived the completed Phase 3B episodes-write spec entry
+- architecture :: [[architecture/sdlc/agentic-development-workflow]] - advanced the workflow artifact reference from the archived Phase 3B episodes-write spec to the active Phase 3C task-classifier spec (via AGENTS.md update)
+
 ## 2026-05-24
 
 - ops :: [[index]] - restructured wiki/user/ to separate architecture (code and sdlc subfolders) from operations (plans, specs, adr subfolders) following the wikiagent pattern

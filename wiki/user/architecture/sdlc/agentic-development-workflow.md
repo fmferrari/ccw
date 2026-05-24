@@ -2,7 +2,7 @@
 type: architecture
 tags: [architecture, workflow, opencode, agents]
 created: 2026-05-23
-updated: 2026-05-24
+updated: 2026-05-25
 status: active
 ---
 
@@ -18,7 +18,7 @@ architecture discussion to agent-executable delivery using opencode.
 - [[ccw-mvp-prd]]: product intent, user stories, implementation decisions,
   testing decisions
 - [[development-plan]]: multi-phase implementation roadmap and task checklist
-- [[phase-3b-explicit-episodes-write-path-spec]]: exact execution contract for the
+- [[phase-3c-deterministic-task-classifier-spec]]: exact execution contract for the
   active slice being implemented or closed out
 - `CONTEXT.md`: domain vocabulary and architectural language used consistently
   across the workflow

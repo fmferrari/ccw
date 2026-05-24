@@ -4,7 +4,7 @@ import sqlite3
 from pathlib import Path
 
 
-SCHEMA_TABLES = ("files", "symbols", "edges", "artifacts", "facts", "episodes")
+SCHEMA_TABLES = ("files", "symbols", "edges", "artifacts", "facts", "episodes", "classifications")
 
 FILES_REQUIRED_COLUMNS = ("id", "path", "content_hash", "size_bytes", "language")
 FILES_OPTIONAL_COLUMNS = (
@@ -27,6 +27,12 @@ EPISODES_COLUMNS = ("id", "summary", "touched_files", "created_at")
 EPISODES_OPTIONAL_COLUMNS = (
     ("summary", "TEXT"),
     ("touched_files", "TEXT"),
+    ("created_at", "TEXT"),
+)
+CLASSIFICATIONS_COLUMNS = ("id", "text", "mode", "created_at")
+CLASSIFICATIONS_OPTIONAL_COLUMNS = (
+    ("text", "TEXT"),
+    ("mode", "TEXT"),
     ("created_at", "TEXT"),
 )
 
@@ -54,6 +60,7 @@ def bootstrap_index_database(path: Path) -> Path:
             _ensure_artifacts_table(connection)
             _ensure_facts_table(connection)
             _ensure_episodes_table(connection)
+            _ensure_classifications_table(connection)
     except sqlite3.Error as error:
         if created_database and path.exists():
             path.unlink()
@@ -185,6 +192,18 @@ def _ensure_episodes_table(connection: sqlite3.Connection) -> None:
         raise ValueError("Unexpected episodes table schema")
 
     _ensure_optional_columns(connection, "episodes", column_names, EPISODES_OPTIONAL_COLUMNS)
+
+
+def _ensure_classifications_table(connection: sqlite3.Connection) -> None:
+    column_names = tuple(_read_table_columns(connection, "classifications"))
+
+    if set(CLASSIFICATIONS_COLUMNS).issubset(column_names):
+        return
+
+    if column_names != ("id",):
+        raise ValueError("Unexpected classifications table schema")
+
+    _ensure_optional_columns(connection, "classifications", column_names, CLASSIFICATIONS_OPTIONAL_COLUMNS)
 
 
 def _ensure_optional_columns(

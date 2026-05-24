@@ -57,7 +57,7 @@ Only then open `README.md` or deeper architecture docs as needed.
 
 - Product intent: `wiki/user/architecture/ccw-mvp-prd.md`
 - Roadmap: `wiki/user/ops/plans/development-plan.md`
-- Active slice spec: `wiki/user/ops/specs/phase-3b-explicit-episodes-write-path-spec.md`
+- Active slice spec: `wiki/user/ops/specs/phase-3c-deterministic-task-classifier-spec.md`
 - Companion boundary: `wiki/user/architecture/ccw-stack-companion-boundary.md`
 - Delivery workflow: `wiki/user/architecture/sdlc/agentic-development-workflow.md`
 - Hard decision log: `docs/adr/`

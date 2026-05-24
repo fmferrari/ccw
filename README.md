@@ -32,6 +32,7 @@ ccw update --run ./conductor/runs/latest
 
 - `wiki/user/architecture/ccw-mvp-prd.md`
 - `wiki/user/ops/plans/development-plan.md`
+- `wiki/user/ops/specs/phase-3c-deterministic-task-classifier-spec.md`
 - `wiki/user/ops/specs/phase-3b-explicit-episodes-write-path-spec.md`
 - `wiki/user/ops/specs/phase-3a-explicit-facts-write-path-spec.md`
 - `wiki/user/ops/specs/phase-2c-deterministic-multi-language-graph-spec.md`
@@ -45,7 +46,7 @@ ccw update --run ./conductor/runs/latest
 This repo now ships `ccw init` for deterministic local-state bootstrap and
 `ccw index` for deterministic file inventory, multi-language symbols, basic
 edges, document artifacts, git signals, and snapshot output into
-`.ccw/index.sqlite` and `.ccw/snapshots/index.json`, plus `ccw facts add` and
-`ccw episodes add` for explicit append-only project memory. The active slice
-remains Phase 3B explicit episodes write-path support until the next Phase 3
-spec is frozen.
+`.ccw/index.sqlite` and `.ccw/snapshots/index.json`, plus `ccw facts add`,
+`ccw episodes add` for explicit append-only project memory, and `ccw classify`
+for deterministic task classification. The active slice remains Phase 3C
+deterministic task classification until the next Phase 3 spec is frozen.

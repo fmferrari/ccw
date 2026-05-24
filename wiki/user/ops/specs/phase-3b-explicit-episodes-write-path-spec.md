@@ -3,7 +3,7 @@ type: architecture
 tags: [architecture, spec, slice, memory, episodes]
 created: 2026-05-24
 updated: 2026-05-24
-status: active
+status: archived
 ---
 
 # Phase 3B explicit episodes write path spec
@@ -117,6 +117,9 @@ contract.
 - Validation passes with `python -m unittest` from the repo root
 
 ## Follow-on slice
+
+Completed episodes slice. Superseded by
+[[phase-3c-deterministic-task-classifier-spec]] for the active Phase 3 work.
 
 After this slice, the next planned work is deterministic task classification,
 then compile-recipe selection and budget allocation on top of explicit facts
