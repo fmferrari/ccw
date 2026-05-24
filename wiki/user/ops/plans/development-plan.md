@@ -134,25 +134,21 @@ Current status:
 
 - Phase 3 is fully implemented and validated: fact persistence, episode persistence,
   deterministic task classification, compile recipes, and budget allocation.
-- Validation command: `python -m unittest` (78 tests)
-- The active slice spec is now [[phase-3d-recipe-and-budget-spec]].
-- Phase 3A explicit facts write path is implemented and validated.
-- Phase 3B explicit episodes write path is implemented and validated.
-- Phase 3C deterministic task classifier is implemented and validated.
 - Phase 3D compile recipes and budget allocation is implemented and validated.
-- Follow-on work: Phase 4 context compiler and validator on top of the filled
-  recipe+budget foundation.
+- Validation command: `python -m unittest` (78 tests)
+- Phase 3D spec is now archived as a completed slice.
+- The active slice spec is now [[phase-4-context-compiler-spec]].
+- Follow-on work: begin Phase 4 implementation starting with compiler core (Packet A).
 
-## Phase 4 - Context compiler and validator
+## Phase 4 - Context compiler and validator (current)
 
 Goal: generate inspectable task-scoped context artifacts under a strict budget.
 
-- [ ] Rank relevant files, symbols, tests, and constraints deterministically
-- [ ] Emit the structured compiled-context markdown format
-- [ ] Add exact snippet extraction with stable file anchors
-- [ ] Implement `ccw compile --task ... --budget ... --out ...`
-- [ ] Implement `ccw validate` for compiled artifacts
-- [ ] Add golden tests for ranking, budgeting, and rendered output
+- [ ] Packet A: compiler core — dataclasses, ranking, snippets, composition
+- [ ] Packet B: markdown renderer for CompiledContext
+- [ ] Packet C: `ccw compile --task ... --budget ... --out ... --mode ...`
+- [ ] Packet D: `ccw validate <artifact>` CLI surface
+- [ ] Packet E: golden fixture tests for rendered output
 
 Acceptance criteria:
 
@@ -163,6 +159,12 @@ Acceptance criteria:
 
 Deliverable: `ccw compile` produces a bounded, inspectable context artifact for
 execution models.
+
+Current status:
+
+- Phase 4 slice spec is frozen after premortem.
+- The active slice spec is [[phase-4-context-compiler-spec]].
+- Next: Packet A implementation — compiler core dataclasses, ranking, snippet extraction, and composition.
 
 ## Phase 5 - Conductor integration
 

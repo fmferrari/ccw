@@ -22,7 +22,8 @@ This is the canonical committed vault for CCW.
 
 ## Operations: specs
 
-- [[phase-3d-recipe-and-budget-spec]] — exact contract and shipped notes for the active Phase 3 recipe-and-budget slice
+- [[phase-4-context-compiler-spec]] — exact contract for the active Phase 4 context compiler and validator slice
+- [[phase-3d-recipe-and-budget-spec]] — archived contract for the completed Phase 3 recipe-and-budget slice
 - [[phase-3c-deterministic-task-classifier-spec]] — archived contract for the completed Phase 3C task-classifier slice
 - [[phase-3b-explicit-episodes-write-path-spec]] — archived contract for the completed Phase 3B explicit-episodes slice
 - [[phase-3a-explicit-facts-write-path-spec]] — archived contract for the completed explicit-facts slice
