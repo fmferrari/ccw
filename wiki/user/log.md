@@ -27,3 +27,16 @@ Append-only record of vault changes. Each entry starts with
 - architecture :: [[phase-1-deterministic-compiler-spec]] - archived the completed Phase 1B schema bootstrap spec after promoting Phase 2A as the active slice spec
 - architecture :: [[index]] - advanced the architecture index to the active Phase 2A file-inventory slice spec and archived the completed Phase 1 spec entry
 - architecture :: [[agentic-development-workflow]] - generalized the workflow artifact role from a single next-slice spec to the active slice spec used for implementation and closeout
+- architecture :: [[phase-2b-python-top-level-symbol-inventory-spec]] - created and then shipped the Phase 2B contract for Python top-level symbol extraction, placeholder-schema upgrade behavior, and syntax-failure rollback during `ccw index`
+- architecture :: [[development-plan]] - marked Phase 2B Python top-level symbol inventory complete, recorded `python -m unittest` as the passing validation command, and left Python imports and edges as the next Phase 2 follow-on work
+- architecture :: [[phase-2a-deterministic-file-inventory-spec]] - archived the completed Phase 2A file-inventory spec after promoting Phase 2B as the active slice spec
+- architecture :: [[index]] - advanced the architecture index to the active Phase 2B Python symbol-inventory slice spec and archived the completed Phase 2A spec entry
+- architecture :: [[agentic-development-workflow]] - advanced the workflow artifact reference from the archived Phase 2A file-inventory spec to the active Phase 2B Python symbol-inventory spec
+- architecture :: [[phase-2c-deterministic-multi-language-graph-spec]] - created and then shipped the Phase 2C contract for deterministic multi-language symbols, edges, document artifacts, git signals, test mapping, and snapshot output during `ccw index`
+- architecture :: [[development-plan]] - marked all remaining Phase 2 roadmap items complete, recorded `python -m unittest` as the passing validation command, and advanced the next follow-on work to Phase 3 explicit memory and task recipes
+- architecture :: [[phase-2b-python-top-level-symbol-inventory-spec]] - archived the completed Phase 2B symbol-inventory spec after promoting Phase 2C as the active Phase 2 closeout slice
+- architecture :: [[index]] - advanced the architecture index to the active Phase 2C closeout spec and archived the completed Phase 2B spec entry
+- architecture :: [[agentic-development-workflow]] - advanced the workflow artifact reference from the archived Phase 2B symbol-inventory spec to the active Phase 2C closeout spec
+- architecture :: [[phase-2c-deterministic-multi-language-graph-spec]] - archived the completed Phase 2 closeout spec while Phase 3 slice planning remains unfrozen
+- architecture :: [[development-plan]] - clarified that Phase 2 is complete, Phase 2C is the latest completed slice spec, and the next Phase 3 spec is not yet frozen
+- architecture :: [[agentic-development-workflow]] - clarified that Phase 2C is the latest completed slice contract until a new active slice is frozen

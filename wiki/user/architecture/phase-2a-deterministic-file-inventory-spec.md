@@ -3,10 +3,12 @@ type: architecture
 tags: [architecture, spec, slice, indexing]
 created: 2026-05-23
 updated: 2026-05-23
-status: active
+status: archived
 ---
 
 # Phase 2A deterministic file inventory spec
+
+Superseded by [[phase-2b-python-top-level-symbol-inventory-spec]] for the active symbol-inventory slice.
 
 ## Purpose
 

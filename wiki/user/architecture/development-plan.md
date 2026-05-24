@@ -67,7 +67,7 @@ Current status:
 - The next active slice is Phase 2 deterministic repo inventory and indexing,
   starting with file metadata, hashes, and language persistence in `files`.
 
-## Phase 2 - Deterministic repo inventory and indexing (current)
+## Phase 2 - Deterministic repo inventory and indexing (completed)
 
 Goal: build the deterministic repository index that powers later compilation.
 
@@ -75,12 +75,15 @@ Goal: build the deterministic repository index that powers later compilation.
 - [x] Slice 2A: persist repo-relative paths, SHA-256 content hashes, file sizes, and detected language in `files`
 - [x] Slice 2A: fail loudly when local `.ccw/` state is missing and exclude `.ccw/`, `.git/`, and symlinks from inventory
 - [x] Slice 2A: add fixture-backed tests for initial indexing, rerun stability, changed files, deleted files, explicit target paths, and missing-init failure
-- [ ] Extract symbols, imports, exports, and basic edges for Python and
-  TypeScript/JavaScript
-- [ ] Index Markdown and JSON/YAML documents as searchable project artifacts
-- [ ] Capture git recency and ownership signals needed for ranking
-- [ ] Map tests to files when naming or import signals are available
-- [ ] Add fixture repos and regression tests for indexing output
+- [x] Slice 2B: extract top-level Python `class`, `def`, and `async def` declarations during `ccw index`
+- [x] Slice 2B: persist deterministic symbol rows with file path, symbol name, kind, and source-line anchors in `symbols`
+- [x] Slice 2B: fail loudly on invalid Python syntax and leave previous indexed state intact
+- [x] Slice 2B: add CLI tests for symbol extraction, rerun stability, changed files, deleted files, and placeholder-schema upgrade behavior
+- [x] Slice 2C: extract deterministic imports, exports, and basic local edges for Python and TypeScript/JavaScript
+- [x] Slice 2C: index Markdown and JSON/YAML documents as searchable project artifacts
+- [x] Slice 2C: capture nullable git recency and ownership signals per indexed file
+- [x] Slice 2C: map tests to source files when naming or local-import signals are unambiguous
+- [x] Slice 2C: add fixture-backed regression coverage for mixed-language indexing output and schema upgrades
 
 Acceptance criteria:
 
@@ -93,10 +96,11 @@ context compilation.
 
 Current status:
 
-- Phase 2A deterministic file inventory and `files` table refresh is implemented and validated.
+- Phase 2 is implemented and validated through file inventory, multi-language symbols, basic edges, document artifacts, git ranking signals, test mapping, and deterministic snapshot output.
 - Validation command: `python -m unittest`
-- The active slice spec remains [[phase-2a-deterministic-file-inventory-spec]] until the next Phase 2 symbol-extraction spec is frozen.
-- Follow-on work: extract symbols, imports, exports, and basic edges after the deterministic file substrate, schema expansion path, and exclusion rules are now frozen in code and tests.
+- The latest completed slice spec is [[phase-2c-deterministic-multi-language-graph-spec]].
+- The next Phase 3 memory and recipe slice spec is not frozen yet.
+- Follow-on work: begin Phase 3 explicit memory and task recipes on top of the now-inspectable Phase 2 index substrate.
 
 ## Phase 3 - Explicit memory and task recipes
 

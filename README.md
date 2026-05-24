@@ -32,6 +32,8 @@ ccw update --run ./conductor/runs/latest
 
 - `wiki/user/architecture/ccw-mvp-prd.md`
 - `wiki/user/architecture/development-plan.md`
+- `wiki/user/architecture/phase-2c-deterministic-multi-language-graph-spec.md`
+- `wiki/user/architecture/phase-2b-python-top-level-symbol-inventory-spec.md`
 - `wiki/user/architecture/phase-2a-deterministic-file-inventory-spec.md`
 - `wiki/user/architecture/phase-1-deterministic-compiler-spec.md`
 - `wiki/user/architecture/ccw-stack-companion-boundary.md`
@@ -42,5 +44,6 @@ ccw update --run ./conductor/runs/latest
 ## Current status
 
 This repo now ships `ccw init` for deterministic local-state bootstrap and
-`ccw index` for deterministic file inventory refresh into `.ccw/index.sqlite`,
-alongside the planning and workflow artifacts for later compiler slices.
+`ccw index` for deterministic file inventory, multi-language symbols, basic
+edges, document artifacts, git signals, and snapshot output into
+`.ccw/index.sqlite` and `.ccw/snapshots/index.json`.
