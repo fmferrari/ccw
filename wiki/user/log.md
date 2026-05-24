@@ -10,6 +10,10 @@ Append-only record of vault changes. Each entry starts with
 - architecture :: [[phase-3b-explicit-episodes-write-path-spec]] - archived the completed Phase 3B episodes-write spec after promoting Phase 3C as the active slice spec
 - architecture :: [[index]] - advanced the wiki index to the active Phase 3C task-classifier spec and archived the completed Phase 3B episodes-write spec entry
 - architecture :: [[architecture/sdlc/agentic-development-workflow]] - advanced the workflow artifact reference from the archived Phase 3B episodes-write spec to the active Phase 3C task-classifier spec (via AGENTS.md update)
+- architecture :: [[phase-3d-recipe-and-budget-spec]] - created and shipped the Phase 3D contract for deterministic compile-recipe definitions and budget-allocation algorithm with `Recipe`/`Section` dataclasses, per-mode recipe definitions (bugfix 6k, implementation 8k, review 8k, refactor 10k), proportional budget distribution with minimum floor clamping and remainder-by-weight, case-insensitive mode lookup falling back to implementation, and stable validation for `get_recipe()` and `allocate_budget()`
+- architecture :: [[development-plan]] - marked Phase 3D compile recipes and budget allocation complete, recorded `python -m unittest` (78 tests) as the passing validation command, and advanced the next follow-on work to Phase 4 context compiler and validator
+- architecture :: [[phase-3c-deterministic-task-classifier-spec]] - archived the completed Phase 3C task classifier spec after promoting Phase 3D as the active slice spec
+- architecture :: [[index]] - advanced the wiki index to the active Phase 3D recipe-and-budget spec and archived the completed Phase 3C task-classifier spec entry
 
 ## 2026-05-24
 

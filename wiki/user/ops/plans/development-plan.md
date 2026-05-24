@@ -118,8 +118,8 @@ Goal: add deterministic project memory and task classification.
 - [x] Slice 3C: freeze the first shipped classification record shape and additive upgrade path for the placeholder `classifications` table
 - [x] Slice 3C: classify by keyword matching with tie-breaking and implementation default
 - [x] Slice 3C: add CLI tests for all four modes, default mode, append-only, missing-init failure, empty-text rejection, and placeholder-table upgrade behavior
-- [ ] Define compile recipes and budget allocation by task mode
-- [ ] Add tests for compile recipes and budget allocation
+- [x] Define compile recipes and budget allocation by task mode
+- [x] Add tests for compile recipes and budget allocation
 
 Acceptance criteria:
 
@@ -127,18 +127,21 @@ Acceptance criteria:
 - Task classification stays deterministic and explainable
 - Recipe selection can be reproduced from input text alone
 
-Deliverable: compile behavior can depend on explicit project memory and a stable
-task mode.
+Deliverable: compile behavior can depend on explicit project memory, a stable
+task mode, and a deterministic recipe with per-section budget allocation.
 
 Current status:
 
-- Phase 3 is implemented through fact persistence, episode persistence, and deterministic task classification.
-- Validation command: `python -m unittest`
-- The active slice spec is now [[phase-3c-deterministic-task-classifier-spec]].
+- Phase 3 is fully implemented and validated: fact persistence, episode persistence,
+  deterministic task classification, compile recipes, and budget allocation.
+- Validation command: `python -m unittest` (78 tests)
+- The active slice spec is now [[phase-3d-recipe-and-budget-spec]].
 - Phase 3A explicit facts write path is implemented and validated.
 - Phase 3B explicit episodes write path is implemented and validated.
 - Phase 3C deterministic task classifier is implemented and validated.
-- Follow-on work: define compile recipes and budget allocation on top of explicit facts, episodes, and task classification.
+- Phase 3D compile recipes and budget allocation is implemented and validated.
+- Follow-on work: Phase 4 context compiler and validator on top of the filled
+  recipe+budget foundation.
 
 ## Phase 4 - Context compiler and validator
 

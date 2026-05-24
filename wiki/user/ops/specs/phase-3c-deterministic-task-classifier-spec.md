@@ -3,7 +3,7 @@ type: architecture
 tags: [architecture, spec, slice, task, classification]
 created: 2026-05-25
 updated: 2026-05-25
-status: active
+status: archived
 ---
 
 # Phase 3C deterministic task classifier spec
