@@ -4,6 +4,7 @@ import argparse
 import sys
 from pathlib import Path
 
+from ccw.facts import add_fact
 from ccw.index import index_repository
 from ccw.init import init_local_state
 
@@ -18,6 +19,14 @@ def build_parser() -> argparse.ArgumentParser:
     index_parser = subparsers.add_parser("index", help="Build deterministic repo inventory")
     index_parser.add_argument("path", nargs="?", default=".", help="Index target path")
 
+    facts_parser = subparsers.add_parser("facts", help="Manage explicit project facts")
+    facts_subparsers = facts_parser.add_subparsers(dest="facts_command", required=True)
+
+    facts_add_parser = facts_subparsers.add_parser("add", help="Append one explicit fact")
+    facts_add_parser.add_argument("kind", help="Fact kind")
+    facts_add_parser.add_argument("text", help="Fact text")
+    facts_add_parser.add_argument("path", nargs="?", default=".", help="Fact target path")
+
     return parser
 
 
@@ -31,6 +40,9 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.command == "index":
             index_repository(Path(args.path))
+            return 0
+        if args.command == "facts" and args.facts_command == "add":
+            add_fact(Path(args.path), args.kind, args.text)
             return 0
     except (FileNotFoundError, NotADirectoryError, PermissionError, ValueError) as error:
         print(f"Error: {error}", file=sys.stderr)

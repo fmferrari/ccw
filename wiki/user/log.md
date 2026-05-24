@@ -10,6 +10,12 @@ Append-only record of vault changes. Each entry starts with
 - ops :: [[ops/specs/index]] - moved all phase specs to ops/specs/
 - architecture :: [[architecture/sdlc/index]] - moved agentic-development-workflow to architecture/sdlc/
 - architecture :: [[architecture/code/index]] - created code architecture subfolder for PRD and companion boundary docs
+- architecture :: [[phase-3a-explicit-facts-write-path-spec]] - created and then shipped the Phase 3A contract for explicit append-only facts, placeholder-table upgrade behavior, and stable validation for `ccw facts add`
+- architecture :: [[development-plan]] - marked Phase 3A explicit facts write path complete, recorded `python -m unittest` as the passing validation command, and left episodes plus task routing as the next Phase 3 follow-on work
+- architecture :: [[phase-2c-deterministic-multi-language-graph-spec]] - archived the completed Phase 2 closeout spec after promoting Phase 3A as the active slice spec
+- architecture :: [[index]] - advanced the wiki index to the active Phase 3A explicit-facts spec and archived the completed Phase 2 closeout spec entry
+- architecture :: [[architecture/sdlc/agentic-development-workflow]] - advanced the workflow artifact reference from the completed Phase 2C closeout spec to the active Phase 3A explicit-facts spec
+- architecture :: [[architecture/sdlc/agentic-development-workflow]] - aligned opencode agent context references to the moved SDLC workflow path under `architecture/sdlc/`
 
 ## 2026-05-23
 

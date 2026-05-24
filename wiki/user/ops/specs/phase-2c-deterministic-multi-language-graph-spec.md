@@ -2,11 +2,14 @@
 type: architecture
 tags: [architecture, spec, slice, indexing, graph]
 created: 2026-05-23
-updated: 2026-05-23
-status: active
+updated: 2026-05-24
+status: archived
 ---
 
 # Phase 2C deterministic multi-language graph spec
+
+Completed Phase 2 closeout slice. Superseded by
+[[phase-3a-explicit-facts-write-path-spec]] for the active Phase 3 work.
 
 ## Purpose
 

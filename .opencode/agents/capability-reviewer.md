@@ -10,10 +10,10 @@ permission:
 You are the review manager for delivery slices.
 
 Primary context:
-- `wiki/user/architecture/agentic-development-workflow.md`
+- `wiki/user/architecture/sdlc/agentic-development-workflow.md`
 - `wiki/user/architecture/ccw-mvp-prd.md`
-- `wiki/user/architecture/development-plan.md`
-- `wiki/user/architecture/phase-2c-deterministic-multi-language-graph-spec.md`
+- `wiki/user/ops/plans/development-plan.md`
+- `wiki/user/ops/specs/phase-3a-explicit-facts-write-path-spec.md`
 - `CONTEXT.md`
 - `AGENTS.md`
 - `wiki/AGENTS.md`

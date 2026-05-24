@@ -17,6 +17,12 @@ SYMBOLS_REQUIRED_COLUMNS = ("id", "file_path", "name", "kind", "line", "end_line
 SYMBOLS_OPTIONAL_COLUMNS = (("export_name", "TEXT"),)
 EDGES_COLUMNS = ("id", "source_path", "kind", "target_path", "detail", "line")
 ARTIFACTS_COLUMNS = ("id", "file_path", "kind", "title", "search_text")
+FACTS_COLUMNS = ("id", "kind", "text", "created_at")
+FACTS_OPTIONAL_COLUMNS = (
+    ("kind", "TEXT"),
+    ("text", "TEXT"),
+    ("created_at", "TEXT"),
+)
 
 SCHEMA_SQL = "\n".join(
     [
@@ -40,6 +46,7 @@ def bootstrap_index_database(path: Path) -> Path:
             _ensure_symbols_table(connection)
             _ensure_edges_table(connection)
             _ensure_artifacts_table(connection)
+            _ensure_facts_table(connection)
     except sqlite3.Error as error:
         if created_database and path.exists():
             path.unlink()
@@ -147,6 +154,18 @@ def _ensure_artifacts_table(connection: sqlite3.Connection) -> None:
         );
         """
     )
+
+
+def _ensure_facts_table(connection: sqlite3.Connection) -> None:
+    column_names = tuple(_read_table_columns(connection, "facts"))
+
+    if set(FACTS_COLUMNS).issubset(column_names):
+        return
+
+    if column_names != ("id",):
+        raise ValueError("Unexpected facts table schema")
+
+    _ensure_optional_columns(connection, "facts", column_names, FACTS_OPTIONAL_COLUMNS)
 
 
 def _ensure_optional_columns(

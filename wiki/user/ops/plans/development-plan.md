@@ -2,7 +2,7 @@
 type: architecture
 tags: [architecture, plan, iterations]
 created: 2026-05-23
-updated: 2026-05-23
+updated: 2026-05-24
 status: active
 ---
 
@@ -102,11 +102,14 @@ Current status:
 - The next Phase 3 memory and recipe slice spec is not frozen yet.
 - Follow-on work: begin Phase 3 explicit memory and task recipes on top of the now-inspectable Phase 2 index substrate.
 
-## Phase 3 - Explicit memory and task recipes
+## Phase 3 - Explicit memory and task recipes (current)
 
 Goal: add deterministic project memory and task classification.
 
-- [ ] Implement append-only facts storage and `ccw facts add`
+- [x] Slice 3A: implement append-only facts persistence and `ccw facts add`
+- [x] Slice 3A: freeze the first shipped fact record shape and additive upgrade path for the placeholder `facts` table
+- [x] Slice 3A: reject empty or unsupported fact inputs while preserving append-only behavior
+- [x] Slice 3A: add CLI tests for fact persistence, repeated appends, missing-init failure, and placeholder-table upgrade behavior
 - [ ] Implement append-only episodes storage for completed runs
 - [ ] Add a deterministic task classifier for bug fix, implementation, review,
   and refactor modes
@@ -121,6 +124,14 @@ Acceptance criteria:
 
 Deliverable: compile behavior can depend on explicit project memory and a stable
 task mode.
+
+Current status:
+
+- Phase 2 is complete and validated.
+- Validation command: `python -m unittest`
+- The active slice spec is now [[phase-3a-explicit-facts-write-path-spec]].
+- Phase 3A explicit facts write path is implemented and validated.
+- Follow-on work: add append-only episodes next, then task classification and compile recipes on top of explicit project memory.
 
 ## Phase 4 - Context compiler and validator
 
