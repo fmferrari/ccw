@@ -23,6 +23,12 @@ FACTS_OPTIONAL_COLUMNS = (
     ("text", "TEXT"),
     ("created_at", "TEXT"),
 )
+EPISODES_COLUMNS = ("id", "summary", "touched_files", "created_at")
+EPISODES_OPTIONAL_COLUMNS = (
+    ("summary", "TEXT"),
+    ("touched_files", "TEXT"),
+    ("created_at", "TEXT"),
+)
 
 SCHEMA_SQL = "\n".join(
     [
@@ -47,6 +53,7 @@ def bootstrap_index_database(path: Path) -> Path:
             _ensure_edges_table(connection)
             _ensure_artifacts_table(connection)
             _ensure_facts_table(connection)
+            _ensure_episodes_table(connection)
     except sqlite3.Error as error:
         if created_database and path.exists():
             path.unlink()
@@ -166,6 +173,18 @@ def _ensure_facts_table(connection: sqlite3.Connection) -> None:
         raise ValueError("Unexpected facts table schema")
 
     _ensure_optional_columns(connection, "facts", column_names, FACTS_OPTIONAL_COLUMNS)
+
+
+def _ensure_episodes_table(connection: sqlite3.Connection) -> None:
+    column_names = tuple(_read_table_columns(connection, "episodes"))
+
+    if set(EPISODES_COLUMNS).issubset(column_names):
+        return
+
+    if column_names != ("id",):
+        raise ValueError("Unexpected episodes table schema")
+
+    _ensure_optional_columns(connection, "episodes", column_names, EPISODES_OPTIONAL_COLUMNS)
 
 
 def _ensure_optional_columns(

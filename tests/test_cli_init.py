@@ -274,6 +274,75 @@ class InitCliTests(unittest.TestCase):
             self.assertEqual(columns, ["id", "kind", "text", "created_at"])
             self.assertEqual(rows, [(None, None, None)])
 
+    def test_init_upgrades_placeholder_episodes_table_non_destructively(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            state_dir = target / ".ccw"
+            state_dir.mkdir()
+            (state_dir / "compiled").mkdir()
+            (state_dir / "snapshots").mkdir()
+            (state_dir / "config.yaml").write_text("config_version: 1\n", encoding="utf-8")
+
+            with sqlite3.connect(state_dir / "index.sqlite") as connection:
+                connection.executescript(
+                    """
+                    CREATE TABLE files (
+                        id INTEGER PRIMARY KEY,
+                        path TEXT NOT NULL UNIQUE,
+                        content_hash TEXT NOT NULL,
+                        size_bytes INTEGER NOT NULL,
+                        language TEXT NOT NULL,
+                        last_commit_at INTEGER,
+                        last_author_email TEXT,
+                        owner_email TEXT,
+                        owner_commit_count INTEGER
+                    );
+                    CREATE TABLE symbols (
+                        id INTEGER PRIMARY KEY,
+                        file_path TEXT NOT NULL,
+                        name TEXT NOT NULL,
+                        kind TEXT NOT NULL,
+                        line INTEGER NOT NULL,
+                        end_line INTEGER NOT NULL,
+                        export_name TEXT
+                    );
+                    CREATE TABLE edges (
+                        id INTEGER PRIMARY KEY,
+                        source_path TEXT NOT NULL,
+                        kind TEXT NOT NULL,
+                        target_path TEXT NOT NULL,
+                        detail TEXT,
+                        line INTEGER
+                    );
+                    CREATE TABLE artifacts (
+                        id INTEGER PRIMARY KEY,
+                        file_path TEXT NOT NULL,
+                        kind TEXT NOT NULL,
+                        title TEXT NOT NULL,
+                        search_text TEXT NOT NULL
+                    );
+                    CREATE TABLE facts (
+                        id INTEGER PRIMARY KEY,
+                        kind TEXT,
+                        text TEXT,
+                        created_at TEXT
+                    );
+                    CREATE TABLE episodes (id INTEGER PRIMARY KEY);
+                    """
+                )
+                connection.execute("INSERT INTO episodes DEFAULT VALUES")
+                connection.commit()
+
+            result = run_ccw("init", cwd=target)
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            with sqlite3.connect(state_dir / "index.sqlite") as connection:
+                columns = [name for _, name, *_ in connection.execute("PRAGMA table_info(episodes)").fetchall()]
+                rows = connection.execute("SELECT summary, touched_files, created_at FROM episodes ORDER BY id").fetchall()
+
+            self.assertEqual(columns, ["id", "summary", "touched_files", "created_at"])
+            self.assertEqual(rows, [(None, None, None)])
+
     def test_installed_console_entrypoint_bootstraps_repo(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
