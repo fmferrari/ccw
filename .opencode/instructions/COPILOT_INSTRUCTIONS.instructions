@@ -72,10 +72,10 @@
   review.
 - Supporting artifacts for that flow:
   - `wiki/user/architecture/ccw-mvp-prd.md`
-  - `wiki/user/architecture/development-plan.md`
-  - `wiki/user/architecture/phase-2c-deterministic-multi-language-graph-spec.md`
+  - `wiki/user/ops/plans/development-plan.md`
+  - `wiki/user/ops/specs/phase-3a-explicit-facts-write-path-spec.md`
   - `wiki/user/architecture/ccw-stack-companion-boundary.md`
-  - `wiki/user/architecture/agentic-development-workflow.md`
+  - `wiki/user/architecture/sdlc/agentic-development-workflow.md`
 
 This instruction set keeps work aligned with CCW's deterministic architecture,
 local artifact discipline, and opencode workflow.

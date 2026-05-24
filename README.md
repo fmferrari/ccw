@@ -31,13 +31,11 @@ ccw update --run ./conductor/runs/latest
 ## Key docs
 
 - `wiki/user/architecture/ccw-mvp-prd.md`
-- `wiki/user/architecture/development-plan.md`
-- `wiki/user/architecture/phase-2c-deterministic-multi-language-graph-spec.md`
-- `wiki/user/architecture/phase-2b-python-top-level-symbol-inventory-spec.md`
-- `wiki/user/architecture/phase-2a-deterministic-file-inventory-spec.md`
-- `wiki/user/architecture/phase-1-deterministic-compiler-spec.md`
+- `wiki/user/ops/plans/development-plan.md`
+- `wiki/user/ops/specs/phase-3a-explicit-facts-write-path-spec.md`
+- `wiki/user/ops/specs/phase-2c-deterministic-multi-language-graph-spec.md`
 - `wiki/user/architecture/ccw-stack-companion-boundary.md`
-- `wiki/user/architecture/agentic-development-workflow.md`
+- `wiki/user/architecture/sdlc/agentic-development-workflow.md`
 - `docs/adr/0001-use-microsoft-conductor-as-the-orchestrator.md`
 - `docs/adr/0002-keep-orchestration-and-portable-brain-in-ccw-stack.md`
 
@@ -46,4 +44,6 @@ ccw update --run ./conductor/runs/latest
 This repo now ships `ccw init` for deterministic local-state bootstrap and
 `ccw index` for deterministic file inventory, multi-language symbols, basic
 edges, document artifacts, git signals, and snapshot output into
-`.ccw/index.sqlite` and `.ccw/snapshots/index.json`.
+`.ccw/index.sqlite` and `.ccw/snapshots/index.json`, plus `ccw facts add` for
+explicit append-only project facts. The active slice remains Phase 3A explicit
+facts write-path support until the next Phase 3 spec is frozen.
