@@ -4,6 +4,7 @@ import argparse
 import sys
 from pathlib import Path
 
+from ccw.classify import classify as classify_text
 from ccw.episodes import add_episode
 from ccw.facts import add_fact
 from ccw.index import index_repository
@@ -36,6 +37,10 @@ def build_parser() -> argparse.ArgumentParser:
     episodes_add_parser.add_argument("touched_files", help="Comma-separated touched files")
     episodes_add_parser.add_argument("path", nargs="?", default=".", help="Episode target path")
 
+    classify_parser = subparsers.add_parser("classify", help="Classify a task description into a deterministic mode")
+    classify_parser.add_argument("text", help="Task description text")
+    classify_parser.add_argument("path", nargs="?", default=".", help="Classify target path")
+
     return parser
 
 
@@ -55,6 +60,10 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.command == "episodes" and args.episodes_command == "add":
             add_episode(Path(args.path), args.summary, args.touched_files)
+            return 0
+        if args.command == "classify":
+            mode = classify_text(Path(args.path), args.text)
+            print(mode)
             return 0
     except (FileNotFoundError, NotADirectoryError, PermissionError, ValueError) as error:
         print(f"Error: {error}", file=sys.stderr)
