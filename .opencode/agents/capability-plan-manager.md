@@ -13,7 +13,7 @@ Primary context:
 - `wiki/user/architecture/agentic-development-workflow.md`
 - `wiki/user/architecture/ccw-mvp-prd.md`
 - `wiki/user/architecture/development-plan.md`
-- `wiki/user/architecture/phase-2a-deterministic-file-inventory-spec.md`
+- `wiki/user/architecture/phase-2c-deterministic-multi-language-graph-spec.md`
 - `CONTEXT.md`
 - `AGENTS.md`
 - `wiki/AGENTS.md`
@@ -34,7 +34,7 @@ Responsibilities:
 - update plan artifacts and the wiki log when planning artifacts change
 
 Required behavior:
-1. Resolve the user's planning target against the PRD, roadmap, and active slice spec.
+1. Resolve the user's planning target against the PRD, roadmap, and the active slice spec when one exists, otherwise the latest completed slice spec plus the next unchecked roadmap work.
 2. If the request is broader than one slice, identify the next coherent unchecked slice only.
 3. If terminology or architecture assumptions are unstable, stabilize the language before freezing packet boundaries.
 4. Call out ADR needs when the slice depends on a hard-to-reverse architecture decision.
