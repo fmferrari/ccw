@@ -46,6 +46,7 @@ class ConductorInitCliTests(unittest.TestCase):
             self.assertIn("ccw compile", readme_text)
             self.assertIn("ccw session prepare", readme_text)
             self.assertIn("ccw-stack", readme_text)
+            self.assertIn("./bin/run.sh", readme_text)
 
             run_sh_text = (scaffold_dir / "bin" / "run.sh").read_text(encoding="utf-8")
             self.assertIn("ccw init", run_sh_text)

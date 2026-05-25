@@ -15,8 +15,8 @@ set -euo pipefail
 # Each step produces a stable output contract (files under .ccw/) that a
 # downstream step, agent, or harness can consume without MCP or provider APIs.
 #
-# Full Conductor workflow packaging and harness adapters live in the
-# companion ccw-stack repo: https://github.com/anomalyco/ccw-stack
+# Full Conductor workflow packaging and harness adapters live in a
+# companion orchestration repo such as ccw-stack, not in CCW core.
 
 CCW="${CCW:-ccw}"
 TARGET="${1:-.}"
@@ -80,22 +80,22 @@ without MCP, provider APIs, or CCW itself.
 
 ## Companion repo boundary
 
-CCW owns this deterministic pipeline. The companion
-[ccw-stack](https://github.com/anomalyco/ccw-stack) repo owns:
+CCW owns this deterministic pipeline. A companion orchestration repo such as
+`ccw-stack`, when used, should own:
 
 - Conductor workflow definitions that wrap these steps
 - Harness-specific adapters and session attachment
 - Optional portable brain behavior
 - Planner/implementer/reviewer run contracts
 
-See `wiki/user/architecture/ccw-stack-companion-boundary.md` for the
-full ownership split.
+See the CCW repository docs for the full ownership split:
+https://github.com/fmferrari/ccw/blob/main/wiki/user/architecture/ccw-stack-companion-boundary.md
 
 ## Usage
 
 ```bash
-chmod +x run.sh
-./run.sh /path/to/target/repo
+chmod +x bin/run.sh
+./bin/run.sh /path/to/target/repo
 ```
 
 Or run individual steps through the orchestrator of your choice.

@@ -1,3 +1,8 @@
+## Session bundle autoload (mandatory)
+If `.ccw/session/latest/SESSION.md` exists, read it first.
+Use `compiled-context.md` as grounded task context. Do not re-gather
+repo context unless the bundle is stale per `session.json`.
+
 # CCW Project - OpenCode Instructions
 
 ## 1. Wiki-first knowledge management
@@ -38,8 +43,8 @@
   path unless the deterministic validation contract is explicit.
 
 ## 4. Project root discipline
-- Treat `/Users/felipeferrari/Documents/ai/ccw` as the repo root for this
-  project.
+- Treat the worktree containing `opencode.json`, `AGENTS.md`, `wiki/`,
+  `docs/adr/`, and `CONTEXT.md` as the repo root for this project.
 - Before running repo-level commands, anchor on this root by checking for
   `opencode.json`, `AGENTS.md`, `wiki/`, `docs/adr/`, and `CONTEXT.md`.
 - Run repo-wide commands from the project root or the relevant subdirectory,

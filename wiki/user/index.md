@@ -39,3 +39,7 @@ This is the canonical committed vault for CCW.
 ## Operations: ADR and process
 
 - ADRs live in `docs/adr/` (code-repo ADR source) and are tracked here as operational process artifacts
+
+## Operations: notes
+
+- [[open-source-readiness]] — public repository baseline for license, community docs, CI, and configuration hygiene

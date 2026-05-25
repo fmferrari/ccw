@@ -118,3 +118,4 @@ Append-only record of vault changes. Each entry starts with
 - architecture :: [[phase-5d-post-run-update-spec]] — created Phase 5D spec for post-run `ccw update --run ...` with re-index, episode recording, and optional decision fact
 - architecture :: [[development-plan]] — marked Phase 5D Packet D complete (update module, CLI, tests, ccw-stack integration docs); updated test count to 145; advanced follow-on to Phase 6
 - architecture :: [[ccw-stack-companion-boundary]] — documented the `ccw update` integration contract for ccw-stack planner, implementer, and reviewer workflows
+- ops :: [[open-source-readiness]] — added the public-repo baseline: MIT license, community docs, CI/templates, README onboarding, and removal of hardcoded local opencode paths
