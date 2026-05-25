@@ -8,7 +8,8 @@ status: active
 
 # Specs index
 
-- [[phase-5b-portable-session-bundle-spec]]
+- [[phase-5b-portable-session-bundle-spec]] (active)
+- [[phase-45-compiler-pipeline-spec]]
 - [[phase-5a-mcp-server-spec]]
 - [[phase-4-context-compiler-spec]]
 - [[phase-3d-recipe-and-budget-spec]]

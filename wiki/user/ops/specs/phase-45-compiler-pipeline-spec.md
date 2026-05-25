@@ -184,3 +184,24 @@ Go recommendation:
     the refactoring (proven by golden tests)
   - Pipeline runner handles zero-pass and single-pass edge cases
   - `ccw compile --task ... --out ... CLI produces identical output
+
+## Implementation status
+
+All three packets implemented and validated.
+
+### Packet A — Pass protocol, IR, and pipeline runner (done)
+- `src/ccw/pipeline.py` created with `CompilationIR`, `Pass` protocol, and `CompilationPipeline` runner
+- `compile_context()` delegates to the pipeline via lazy import
+- Pipeline runner is a simple for-loop
+
+### Packet B — Refactor existing functions into Pass subclasses (done)
+- `ResolveTaskPass`: resolves mode, recipe, budget allocation; skips when pre-populated
+- `RankFilesPass`: delegates to `rank_files()` with recipe-driven max_items
+- `ExtractSnippetsPass`: delegates to `extract_snippets()` with per-section budget
+- `LoadMemoryPass`: delegates to `_load_facts`, `_load_episodes`, `_load_constraints`, `_compute_index_hash`
+- `AssemblePass`: sets timestamp on the IR
+- `build_pipeline()` returns all 5 passes; `ir_to_compiled_context()` converts IR to `CompiledContext`
+- No behavioral change: identical golden output, performance guard under 0.5s
+
+### Packet C — Pipeline composition tests (done)
+- `tests/test_pipeline.py` with 13 tests covering IR construction, empty pipeline, pass chaining, individual pass behavior (all 5), full pipeline integration, and IR-to-CompiledContext conversion

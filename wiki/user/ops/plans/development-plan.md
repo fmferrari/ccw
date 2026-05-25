@@ -177,36 +177,40 @@ Current status:
 - Active slice spec: [[phase-4-context-compiler-spec]] (frozen after premortem, now implemented)
 - Follow-on work: formalize the compiler pass pipeline (Phase 4.5)
 
-## Phase 4.5 - Explicit compiler pass pipeline (current)
+## Phase 4.5 - Explicit compiler pass pipeline (completed)
 
 Goal: Refactor `compile_context()` into an explicit pipeline of named compiler
 passes with a formal intermediate representation (IR), so the "deterministic
 context compiler" architecture matches the code structure.
 
-- [ ] Packet A: Pass protocol, CompilationIR, pipeline runner
-- [ ] Packet B: Refactor existing functions into Pass subclasses
-- [ ] Packet C: Pipeline composition tests
+- [x] Packet A: Pass protocol, CompilationIR, pipeline runner (`src/ccw/pipeline.py`)
+- [x] Packet B: Refactor existing functions into Pass subclasses (ResolveTask, RankFiles, ExtractSnippets, LoadMemory, Assemble)
+- [x] Packet C: Pipeline composition tests (`tests/test_pipeline.py`, 13 tests)
 
 Acceptance criteria:
 
-- No behavioral change — identical input produces identical output
-- All existing unit, CLI, and golden tests pass
-- Performance guard still completes under 0.5s
-- Pipeline runner adds negligible overhead
+- [x] No behavioral change — identical input produces identical output
+- [x] All existing unit, CLI, and golden tests pass
+- [x] Performance guard still completes under 0.5s
+- [x] Pipeline runner adds negligible overhead
 
 Deliverable: `compile_context()` delegates to a named pass pipeline. The code
 structure matches the compiler narrative.
 
 Current status:
 
-- Phase 4.5 spec is frozen but not yet implemented.
-- Active slice spec: [[phase-45-compiler-pipeline-spec]]
-- Execution note: implement Packets A→B→C in order; no behavioral change means
-  golden-test parity is the primary regression detector.
-- Validation command: `python -m unittest`
+- All 3 work packets are implemented and validated.
+- `Pass` protocol: `run(self, ir: CompilationIR, target: Path, database_path: Path) -> CompilationIR`
+- `CompilationIR` carries all intermediate fields across passes
+- `CompilationPipeline` is a list of passes with a for-loop runner
+- 5 named passes: `ResolveTaskPass`, `RankFilesPass`, `ExtractSnippetsPass`, `LoadMemoryPass`, `AssemblePass`
+- `build_pipeline()` and `ir_to_compiled_context()` for construction and conversion
+- `compile_context()` is a thin delegator to the pipeline
+- Validation command: `python -m unittest` (120 tests)
+- Active slice spec: [[phase-5b-portable-session-bundle-spec]]
 - Follow-on work: resume Phase 5 workflow and agent integration surfaces.
 
-## Phase 5 - Workflow and agent integration surfaces
+## Phase 5 - Workflow and agent integration surfaces (current)
 
 Goal: make CCW a first-class deterministic step inside Conductor workflows and
 MCP-capable agent clients.
@@ -240,6 +244,7 @@ agents without becoming the workflow engine.
 
 Current status:
 
+- Phase 4.5 compiler pipeline refactoring is complete. Back to Phase 5.
 - Phase 5A MCP server integration is implemented and validated.
 - `ccw-mcp` exposes `init_repo`, `index_repo`, `record_fact`, `record_episode`,
   `classify_task`, `compile_task_context`, and `validate_compiled_artifact`
@@ -250,7 +255,7 @@ Current status:
   `*.egg-info` metadata so MCP-driven indexing behaves on lived-in working
   trees, not just clean fixtures.
 - Packet B1 session-bundle writer/layout is implemented and validated.
-- Validation command: `python -m unittest`
+- Validation command: `python -m unittest` (120 tests)
 - Active slice spec: [[phase-5b-portable-session-bundle-spec]]
 - Execution note: treat the active slice as Packet B2 validator/freshness, then
   Packet B3 docs/tests before moving to Conductor workflow scaffolding.
