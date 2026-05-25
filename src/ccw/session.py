@@ -3,8 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from ccw.compile import do_compile
-from ccw.init import resolve_target_directory
+from ccw.compile import compute_index_hash, do_compile
+from ccw.init import resolve_target_directory, require_initialized_local_state
 
 
 def prepare_session_bundle(
@@ -108,3 +108,53 @@ def _parse_int(raw_value: str) -> int:
         return int(raw_value)
     except ValueError:
         return 0
+
+
+def validate_session_bundle(
+    bundle_dir: Path,
+    target: Path | None = None,
+) -> list[str]:
+    errors: list[str] = []
+
+    required_files = ["SESSION.md", "compiled-context.md", "session.json"]
+    for fname in required_files:
+        if not (bundle_dir / fname).is_file():
+            errors.append(f"Missing required bundle file: {fname}")
+
+    if errors:
+        return errors
+
+    try:
+        manifest = json.loads((bundle_dir / "session.json").read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as e:
+        return [f"Cannot parse session.json: {e}"]
+
+    frontmatter = _read_frontmatter(bundle_dir / "compiled-context.md")
+    if not frontmatter:
+        errors.append("compiled-context.md is missing or has no frontmatter")
+        return errors
+
+    for key in ("mode", "budget", "index_hash", "created_at"):
+        manifest_val = str(manifest.get(key, ""))
+        fm_val = str(frontmatter.get(key, ""))
+        if manifest_val != fm_val:
+            errors.append(
+                f"session.json.{key} ('{manifest_val}') does not match "
+                f"compiled-context.md frontmatter ('{fm_val}')"
+            )
+
+    if target is not None:
+        try:
+            resolved_target = resolve_target_directory(target, description="Session validate target")
+            database_path = require_initialized_local_state(resolved_target)
+            current_hash = compute_index_hash(database_path)
+            stored_hash = manifest.get("index_hash", "")
+            if current_hash and current_hash != stored_hash:
+                errors.append(
+                    f"index_hash mismatch: session.json has '{stored_hash}', "
+                    f"current index is '{current_hash}'"
+                )
+        except (ValueError, FileNotFoundError, NotADirectoryError, PermissionError) as e:
+            errors.append(f"Cannot check index freshness: {e}")
+
+    return errors

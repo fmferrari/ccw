@@ -8,7 +8,7 @@ from ccw.compile import (
     CompiledContext,
     ContextSection,
     RankedFile,
-    _compute_index_hash,
+    compute_index_hash,
     _load_constraints,
     _load_episodes,
     _load_facts,
@@ -96,7 +96,7 @@ class LoadMemoryPass:
         ir.facts = _load_facts(database_path)
         ir.episodes = _load_episodes(database_path)
         ir.constraints = _load_constraints(database_path)
-        ir.index_hash = _compute_index_hash(database_path)
+        ir.index_hash = compute_index_hash(database_path)
         return ir
 
 
