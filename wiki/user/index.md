@@ -22,7 +22,9 @@ This is the canonical committed vault for CCW.
 
 ## Operations: specs
 
-- [[phase-4-context-compiler-spec]] — exact contract for the active Phase 4 context compiler and validator slice
+- [[phase-5b-portable-session-bundle-spec]] — exact contract for the active Phase 5B portable session-bundle slice
+- [[phase-5a-mcp-server-spec]] — archived contract for the completed Phase 5A MCP integration slice
+- [[phase-4-context-compiler-spec]] — archived contract for the completed Phase 4 context compiler and validator slice
 - [[phase-3d-recipe-and-budget-spec]] — archived contract for the completed Phase 3 recipe-and-budget slice
 - [[phase-3c-deterministic-task-classifier-spec]] — archived contract for the completed Phase 3C task-classifier slice
 - [[phase-3b-explicit-episodes-write-path-spec]] — archived contract for the completed Phase 3B explicit-episodes slice

@@ -2,7 +2,7 @@
 type: architecture
 tags: [architecture, plan, iterations]
 created: 2026-05-23
-updated: 2026-05-24
+updated: 2026-05-25
 status: active
 ---
 
@@ -177,24 +177,57 @@ Current status:
 - Active slice spec: [[phase-4-context-compiler-spec]] (frozen after premortem, now implemented)
 - Next: Phase 5 Conductor integration or follow-on Phase 4 improvements
 
-## Phase 5 - Conductor integration
+## Phase 5 - Workflow and agent integration surfaces
 
-Goal: make CCW a first-class deterministic step inside Conductor workflows.
+Goal: make CCW a first-class deterministic step inside Conductor workflows and
+MCP-capable agent clients.
 
-- [ ] Add `ccw conductor init` for a starter workflow scaffold
-- [ ] Ship a sample `ccw-code-task` workflow that indexes and compiles context
-- [ ] Support workflow-friendly file outputs for compiled artifacts
-- [ ] Add `ccw update --run ...` for post-run memory updates
-- [ ] Document the integration path for the companion `ccw-stack` planner, implementer, and reviewer workflows
+- [x] Packet A: ship `ccw-mcp` as an installable MCP server entrypoint
+- [x] Packet A: expose init, index, facts, episodes, classify, compile, and validate as structured MCP tools
+- [x] Packet A: support explicit `target_path` inputs plus `CCW_TARGET_ROOT` for default external-repo targeting
+- [x] Packet A: add regression tests and README examples for attaching CCW to another project as an MCP server
+- [ ] Packet B1: add `ccw session prepare` and write a stable `.ccw/session/latest/` bundle layout
+- [ ] Packet B1: emit a model-facing `SESSION.md`, `compiled-context.md`, and `session.json`
+- [ ] Packet B2: include freshness and provenance metadata plus `ccw session validate`
+- [ ] Packet B2: fail loudly on missing files, mismatched bundle metadata, or stale compiled-artifact references
+- [ ] Packet B3: add regression tests and README examples for harness-agnostic session-bundle consumption
+- [ ] Packet C: add `ccw conductor init` for a starter workflow scaffold
+- [ ] Packet C: ship a sample `ccw-code-task` workflow that indexes and prepares a session bundle
+- [ ] Packet C: support workflow-friendly file outputs for compiled artifacts and session bundles
+- [ ] Packet D: add `ccw update --run ...` for post-run memory updates
+- [ ] Packet D: document the integration path for the companion `ccw-stack` planner, implementer, and reviewer workflows
 
 Acceptance criteria:
 
+- An MCP client can call deterministic CCW operations against an external repo without shelling out
+- A session bundle can be consumed as plain files without MCP, provider APIs, or harness-specific prompt schemas
+- The top-level session file makes it obvious to a model that the compiled context should be used on a first or later turn
 - A Conductor workflow can call `ccw index` and `ccw compile` directly
-- The compiled artifact is consumable by later workflow steps
+- The compiled artifact and session bundle are consumable by later workflow steps
 - Post-run updates can attach the resulting decision and file-change evidence
 
-Deliverable: CCW fits cleanly into a deterministic Conductor workflow without
-becoming the workflow engine.
+Deliverable: CCW fits cleanly into deterministic workflows and MCP-capable
+agents without becoming the workflow engine.
+
+Current status:
+
+- Phase 5A MCP server integration is implemented and validated.
+- `ccw-mcp` exposes `init_repo`, `index_repo`, `record_fact`, `record_episode`,
+  `classify_task`, `compile_task_context`, and `validate_compiled_artifact`
+  over FastMCP.
+- Relative MCP artifact paths resolve against the target repo root, using either
+  explicit `target_path` arguments or `CCW_TARGET_ROOT`.
+- Repository indexing now excludes common runtime/cache directories and
+  `*.egg-info` metadata so MCP-driven indexing behaves on lived-in working
+  trees, not just clean fixtures.
+- Validation command: `python -m unittest`
+- Active slice spec: [[phase-5b-portable-session-bundle-spec]]
+- Execution note: treat the active slice as Packet B1 writer/layout, Packet B2
+  validator/freshness, then Packet B3 docs/tests before moving to Conductor
+  workflow scaffolding.
+- Follow-on work: portable session-bundle contract first, then Conductor
+  workflow scaffolding, post-run `ccw update`, and configurable ignore-policy
+  support beyond the built-in exclusions.
 
 ## Phase 6 - Optional compression and post-run learning
 

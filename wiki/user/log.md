@@ -5,6 +5,12 @@ Append-only record of vault changes. Each entry starts with
 
 ## 2026-05-25
 
+- architecture :: [[phase-5a-mcp-server-spec]] - created and shipped the Phase 5A contract for FastMCP-based external-project integration with installable `ccw-mcp`, structured init/index/fact/episode/classify/compile/validate tools, target-path or `CCW_TARGET_ROOT` repo resolution, and regression coverage for repo-relative artifact paths
+- architecture :: [[development-plan]] - broadened Phase 5 from Conductor-only follow-on work to workflow and agent integration surfaces, marked the MCP server packet complete, and left Conductor scaffolding plus ignore-policy hardening as follow-on work
+- architecture :: [[phase-4-context-compiler-spec]] - archived the completed Phase 4 context-compiler spec after promoting the Phase 5A MCP server slice as the active execution contract
+- architecture :: [[index]] - advanced the wiki index to the active Phase 5A MCP server spec and archived the completed Phase 4 context-compiler spec entry
+- architecture :: [[architecture/sdlc/agentic-development-workflow]] - advanced the workflow artifact reference from the completed Phase 4 context-compiler spec to the active Phase 5A MCP server spec
+- architecture :: [[phase-5a-mcp-server-spec]] - hardened external-repo indexing for MCP use by excluding common runtime/cache directories and `*.egg-info`, which restored the full `python -m unittest` validation pass on lived-in working trees
 - architecture :: [[phase-4-context-compiler-spec]] — created and shipped the Phase 4 contract for deterministic context compilation, ranking, snippet extraction, markdown rendering, `ccw compile`, `ccw validate`, and golden tests; frozen after premortem with substring-prefix ranking, I/O perf guard, budget-display calibration, and `compilations` schema aligned to existing patterns
 - architecture :: [[development-plan]] — advanced Phase 4 as the active slice, archived Phase 3D, and decomposed Phase 4 into five work packets (A-E) with explicit dependencies
 - architecture :: [[phase-3d-recipe-and-budget-spec]] — archived the completed Phase 3D recipe-and-budget spec after promoting Phase 4 as the active slice spec
@@ -22,6 +28,17 @@ Append-only record of vault changes. Each entry starts with
 - architecture :: [[development-plan]] - marked Phase 3D compile recipes and budget allocation complete, recorded `python -m unittest` (78 tests) as the passing validation command, and advanced the next follow-on work to Phase 4 context compiler and validator
 - architecture :: [[phase-3c-deterministic-task-classifier-spec]] - archived the completed Phase 3C task classifier spec after promoting Phase 3D as the active slice spec
 - architecture :: [[index]] - advanced the wiki index to the active Phase 3D recipe-and-budget spec and archived the completed Phase 3C task-classifier spec entry
+- architecture :: [[ccw-stack-companion-boundary]] - clarified that CCW owns the provider- and harness-independent session-handoff contract while `ccw-stack` owns provider-specific attachment and session-thread behavior
+- architecture :: [[ccw-mvp-prd]] - added a harness-integrator user story and implementation decision for provider-neutral session handoff around compiled artifacts
+- architecture :: [[phase-5b-portable-session-bundle-spec]] - created the active Phase 5B contract for a portable session bundle with `SESSION.md`, `session.json`, freshness metadata, and file-only validation
+- architecture :: [[development-plan]] - reshaped the next Phase 5 slice around portable session-bundle readiness before Conductor scaffolding and post-run updates
+- architecture :: [[phase-5a-mcp-server-spec]] - archived the completed Phase 5A MCP server spec after promoting the Phase 5B portable session-bundle slice
+- architecture :: [[index]] - advanced the wiki index to the active Phase 5B portable session-bundle spec and archived the completed Phase 5A MCP server spec entry
+- architecture :: [[architecture/sdlc/agentic-development-workflow]] - advanced the workflow artifact reference from the completed Phase 5A MCP server spec to the active Phase 5B portable session-bundle spec
+- ops :: [[ops/specs/index]] - added the new Phase 5B portable session-bundle spec and backfilled archived slice entries in the specs index
+- architecture :: [[CONTEXT]] - defined model provider, harness, session, and portable brain terms to clarify the CCW versus `ccw-stack` runtime boundary
+- architecture :: [[phase-5b-portable-session-bundle-spec]] - decomposed the active Phase 5B slice into explicit workflow-ready work packets for writer/layout, validator/freshness, and docs/tests
+- architecture :: [[development-plan]] - split Phase 5B roadmap work into Packet B1/B2/B3 and added the active-slice execution note for workflow agents
 
 ## 2026-05-24
 

@@ -8,9 +8,13 @@ version = "0.1.0"
 description = "Deterministic context compiler runtime bootstrap"
 readme = "README.md"
 requires-python = ">=3.11"
+dependencies = [
+    "mcp>=1.0",
+]
 
 [project.scripts]
 ccw = "ccw.cli:main"
+ccw-mcp = "ccw.mcp_server:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}

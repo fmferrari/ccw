@@ -2,7 +2,7 @@
 type: architecture
 tags: [architecture, prd, compiler]
 created: 2026-05-23
-updated: 2026-05-23
+updated: 2026-05-25
 status: active
 ---
 
@@ -52,6 +52,9 @@ a script step inside Microsoft Conductor workflows.
 12. As a contributor, I want MVP language support for Python, TypeScript,
     JavaScript, Markdown, JSON, and YAML, so that common repos are useful from
     day one.
+13. As a harness integrator, I want CCW to emit a provider-neutral session
+    handoff artifact, so that a model can reuse compiled context on a first or
+    later turn without re-gathering repo state.
 
 ## Implementation Decisions
 
@@ -69,6 +72,8 @@ a script step inside Microsoft Conductor workflows.
   little as possible.
 - Compiled context is a structured markdown artifact with task, project state,
   relevant files, symbol graph, snippets, and constraints.
+- CCW should expose a provider-neutral session handoff contract around compiled
+  artifacts so any harness can present the same grounded context to a model.
 - Ranking and budgeting stay deterministic.
 - LLM compression is optional and sits strictly after deterministic assembly.
 - Compression output must be validated against known file paths, symbols,
@@ -89,6 +94,7 @@ a script step inside Microsoft Conductor workflows.
 - Building a full multi-agent framework inside CCW
 - Owning multi-harness workflow packaging or adapter installation
 - Owning a portable cross-harness brain layer as canonical project memory
+- Owning provider-specific session attachment or prompt-role behavior
 - Vector search or embedding infrastructure in the MVP critical path
 - Replacing Conductor as the orchestrator
 - Rich semantic analysis beyond the initial supported languages

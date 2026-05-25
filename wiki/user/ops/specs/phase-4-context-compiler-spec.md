@@ -3,7 +3,7 @@ type: architecture
 tags: [architecture, spec, slice, compiler, rank, snippet, validate]
 created: 2026-05-25
 updated: 2026-05-25
-status: active
+status: archived
 ---
 
 # Phase 4 - Context compiler and validator spec
