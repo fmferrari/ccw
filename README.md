@@ -83,6 +83,80 @@ Development config from a local checkout:
 }
 ```
 
+## Session bundle
+
+A session bundle is a portable, file-only handoff that wraps a compiled context
+artifact so it can be consumed directly by an execution model on any harness
+without MCP, provider APIs, or workflow orchestration.
+
+Create a bundle from a repo root:
+
+```bash
+ccw init
+ccw index .
+ccw session prepare --task "Fix the login bug" --mode implementation
+```
+
+The bundle lives at `.ccw/session/latest/` by default and contains three files:
+
+| File | Role |
+|------|------|
+| `SESSION.md` | Model-facing entry file. Instructs the model to use the compiled context below before re-gathering repo context, and to request a refresh on mismatch. |
+| `compiled-context.md` | The grounded, budgeted context artifact produced by `ccw compile`. |
+| `session.json` | Machine-readable metadata: task description, mode, budget, index hash, and timestamps. |
+
+### File-only consumption
+
+A downstream agent, script, or CI step can read the bundle directly:
+
+```python
+import json
+from pathlib import Path
+
+bundle = Path(".ccw/session/latest/")
+
+# Model instructions
+session_md = (bundle / "SESSION.md").read_text()
+
+# Grounded context for the task
+compiled_context = (bundle / "compiled-context.md").read_text()
+
+# Machine-parseable metadata
+metadata = json.loads((bundle / "session.json").read_text())
+```
+
+Validate that the bundle is internally consistent and not stale:
+
+```bash
+ccw session validate .ccw/session/latest/
+```
+
+For multi-repo or harness-managed workflows, write bundles to an explicit path:
+
+```bash
+ccw session prepare \
+  --task "Refactor auth module" \
+  --mode refactor \
+  --out-dir /shared/sessions/auth-refactor \
+  /path/to/repo
+```
+
+### Consumption contract
+
+Any agent or model receiving a session bundle should:
+
+1. Read `SESSION.md` first — it explains that this bundle is the grounded
+   task context.
+2. Use `compiled-context.md` as the authoritative task-scoped repo state.
+   Do not re-gather repository context unless the bundle metadata is stale.
+3. Check `session.json` — if the task, mode, index hash, or timestamp no
+   longer match the current need, request a refreshed bundle instead of
+   silently trusting stale context.
+
+This contract keeps CCW harness-agnostic. Provider-specific session
+attachment and workflow integration belong in the companion
+[ccw-stack](https://github.com/anomalyco/ccw-stack) repo.
+
 ## Core idea
 
 - `Microsoft Conductor` is the deterministic workflow orchestrator.

@@ -58,6 +58,8 @@ class SessionPrepareCliTests(unittest.TestCase):
 
             self.assertIn("Fix the login bug", session_text)
             self.assertIn("compiled-context.md", session_text)
+            self.assertIn("before re-gathering", session_text)
+            self.assertIn("request a refreshed bundle", session_text)
             self.assertIn("Fix the login bug", compiled_text)
             self.assertIn("src/auth/login.py", compiled_text)
 
