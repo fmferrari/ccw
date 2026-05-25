@@ -112,3 +112,9 @@ Append-only record of vault changes. Each entry starts with
 - architecture :: [[development-plan]] - marked Phase 5B Packet B2 complete, updated test count to 133, and advanced the execution note to Packet B3 docs/tests as the next step
 - architecture :: [[phase-5b-portable-session-bundle-spec]] - implemented Packet B3: added `PrepareSessionBundleTests` in `tests/test_session.py` asserting SESSION.md instructions for "before re-gathering" and "request a refreshed bundle"; extended CLI test in `tests/test_cli_session.py` with SESSION.md content assertions; added "Session bundle" section to README.md with file-only consumption examples and explicit consumption contract; 135 tests pass
 - architecture :: [[development-plan]] - marked Phase 5B Packet B3 complete, updated test count to 135, and advanced the execution note to Conductor workflow scaffolding (Packet C) as the next step
+
+## 2026-05-25
+
+- architecture :: [[phase-5d-post-run-update-spec]] — created Phase 5D spec for post-run `ccw update --run ...` with re-index, episode recording, and optional decision fact
+- architecture :: [[development-plan]] — marked Phase 5D Packet D complete (update module, CLI, tests, ccw-stack integration docs); updated test count to 145; advanced follow-on to Phase 6
+- architecture :: [[ccw-stack-companion-boundary]] — documented the `ccw update` integration contract for ccw-stack planner, implementer, and reviewer workflows

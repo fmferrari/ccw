@@ -56,6 +56,32 @@ This document freezes the ownership split between CCW core and the sibling
 CCW Stack should integrate through those explicit CLI and artifact contracts
 rather than by copying compiler internals.
 
+## CCW update integration contract for CCW Stack
+
+The `ccw update --run <summary> --touched-files <files> [--decision <text>]`
+command is the post-run memory surface for ccw-stack agent workflows. After a
+run completes:
+
+1. **Planner workflow**: call `ccw update --run "Planned: ..." --touched-files ""`
+   after recording planning decisions or architecture notes (empty or minimal
+   touched-files when the plan produced no file changes).
+2. **Implementer workflow**: call
+   `ccw update --run "Implemented: ..." --touched-files "a.py,b.py" --decision "..."`.
+   This re-indexes the repo to capture file changes, records an episode with
+   the summary and touched files, and optionally records a decision fact for
+   key implementation choices.
+3. **Reviewer workflow**: call `ccw update --run "Reviewed: ..." --touched-files ""`
+   after completing a review pass.
+
+Each `ccw update` call:
+- Re-runs `ccw index` so subsequent `ccw compile` calls see updated content hashes
+- Appends an episode row that later compilations include in the LoadMemory pass
+- Appends a decision fact row (when `--decision` is provided) that later
+  compilations surface as explicit fact context
+
+CCW Stack should not duplicate this logic. The three workflows should shell out
+or MCP-call `ccw update` rather than inline episode or fact insertion.
+
 ## Boundary rule for compiled-artifact consumption
 
 CCW owns the portable file contract that makes one compiled artifact obviously
