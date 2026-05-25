@@ -395,89 +395,12 @@ def compile_context(
     recipe: Recipe,
     budget: int | None = None,
 ) -> CompiledContext:
-    from ccw.recipe import allocate_budget
-
-    total_budget = recipe.total_budget if budget is None else budget
-    section_budgets = allocate_budget(recipe, total_budget)
-
-    # Rank and extract snippets
-    files_section = recipe.sections.get("files")
-    max_items = files_section.max_items if files_section else 20
-    ranked = rank_files(
+    from ccw.pipeline import run_pipeline
+    return run_pipeline(
         target=target,
-        task_description=task_description,
-        database_path=database_path,
-        max_items=max_items,
-    )
-
-    snippet_budget = section_budgets.get("files", 0)
-    ranked_with_snippets = extract_snippets(
-        target=target,
-        ranked_files=ranked,
-        task_description=task_description,
-        database_path=database_path,
-        budget=snippet_budget,
-    )
-
-    # Load facts, episodes, constraints
-    facts = _load_facts(database_path)
-    episodes = _load_episodes(database_path)
-    constraints = _load_constraints(database_path)
-    index_hash = _compute_index_hash(database_path)
-
-    sections: list[ContextSection] = []
-
-    if ranked_with_snippets:
-        sections.append(
-            ContextSection(
-                name="files",
-                items=tuple(ranked_with_snippets),
-                allocated_budget=snippet_budget,
-                used_budget=snippet_budget,
-            )
-        )
-
-    if facts:
-        sections.append(
-            ContextSection(
-                name="facts",
-                items=tuple(facts),
-                allocated_budget=section_budgets.get("facts", 0),
-                used_budget=sum(len(f) // 4 for f in facts),
-            )
-        )
-
-    if episodes:
-        sections.append(
-            ContextSection(
-                name="episodes",
-                items=tuple(episodes),
-                allocated_budget=section_budgets.get("episodes", 0),
-                used_budget=sum(len(e) // 4 for e in episodes),
-            )
-        )
-
-    if constraints:
-        sections.append(
-            ContextSection(
-                name="constraints",
-                items=tuple(constraints),
-                allocated_budget=section_budgets.get("constraints", 0),
-                used_budget=sum(len(c) // 4 for c in constraints),
-            )
-        )
-
-    import datetime
-    created_at = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
-
-    return CompiledContext(
         task_description=task_description,
         mode=mode,
-        total_budget=total_budget,
-        index_hash=index_hash,
-        sections=tuple(sections),
-        facts=tuple(facts),
-        episodes=tuple(episodes),
-        constraints=tuple(constraints),
-        created_at=created_at,
+        database_path=database_path,
+        recipe=recipe,
+        budget=budget,
     )
