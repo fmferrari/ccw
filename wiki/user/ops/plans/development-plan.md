@@ -175,7 +175,36 @@ Current status:
 - Validation command: `python -m unittest` (102 tests, 1 pre-existing fixture failure)
 - New test files: `tests/test_compile.py` (15 tests), `tests/test_cli_compile.py` (10 tests)
 - Active slice spec: [[phase-4-context-compiler-spec]] (frozen after premortem, now implemented)
-- Next: Phase 5 Conductor integration or follow-on Phase 4 improvements
+- Follow-on work: formalize the compiler pass pipeline (Phase 4.5)
+
+## Phase 4.5 - Explicit compiler pass pipeline (current)
+
+Goal: Refactor `compile_context()` into an explicit pipeline of named compiler
+passes with a formal intermediate representation (IR), so the "deterministic
+context compiler" architecture matches the code structure.
+
+- [ ] Packet A: Pass protocol, CompilationIR, pipeline runner
+- [ ] Packet B: Refactor existing functions into Pass subclasses
+- [ ] Packet C: Pipeline composition tests
+
+Acceptance criteria:
+
+- No behavioral change — identical input produces identical output
+- All existing unit, CLI, and golden tests pass
+- Performance guard still completes under 0.5s
+- Pipeline runner adds negligible overhead
+
+Deliverable: `compile_context()` delegates to a named pass pipeline. The code
+structure matches the compiler narrative.
+
+Current status:
+
+- Phase 4.5 spec is frozen but not yet implemented.
+- Active slice spec: [[phase-45-compiler-pipeline-spec]]
+- Execution note: implement Packets A→B→C in order; no behavioral change means
+  golden-test parity is the primary regression detector.
+- Validation command: `python -m unittest`
+- Follow-on work: resume Phase 5 workflow and agent integration surfaces.
 
 ## Phase 5 - Workflow and agent integration surfaces
 

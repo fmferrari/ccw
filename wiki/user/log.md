@@ -5,6 +5,9 @@ Append-only record of vault changes. Each entry starts with
 
 ## 2026-05-25
 
+- architecture :: [[phase-45-compiler-pipeline-spec]] - created the Phase 4.5 contract for explicit compiler pass pipeline, Pass protocol, CompilationIR, and no-behavior-change refactoring of compile_context() into named passes
+- architecture :: [[development-plan]] - inserted Phase 4.5 compiler pipeline slice between Phase 4 and Phase 5, marked it as the current active slice, and advanced Phase 5B to archived status
+- architecture :: [[index]] - advanced the wiki index to the active Phase 4.5 compiler-pipeline spec and archived the completed Phase 5B portable session-bundle spec entry
 - architecture :: [[phase-5a-mcp-server-spec]] - created and shipped the Phase 5A contract for FastMCP-based external-project integration with installable `ccw-mcp`, structured init/index/fact/episode/classify/compile/validate tools, target-path or `CCW_TARGET_ROOT` repo resolution, and regression coverage for repo-relative artifact paths
 - architecture :: [[development-plan]] - broadened Phase 5 from Conductor-only follow-on work to workflow and agent integration surfaces, marked the MCP server packet complete, and left Conductor scaffolding plus ignore-policy hardening as follow-on work
 - architecture :: [[phase-4-context-compiler-spec]] - archived the completed Phase 4 context-compiler spec after promoting the Phase 5A MCP server slice as the active execution contract
