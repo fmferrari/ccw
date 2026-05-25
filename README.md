@@ -6,11 +6,34 @@ It indexes a repository, stores explicit project facts and episodes, compiles
 task-scoped context to a fixed budget, and can optionally compress that context
 with an LLM after deterministic assembly.
 
-The companion orchestration repo for multi-harness workflows, Conductor
-packaging, and any optional portable brain behavior lives separately in
-`../ccw-stack`.
+CCW intentionally keeps workflow packaging, harness adapters, and any optional
+portable-brain behavior in a separate companion repo (`ccw-stack`) so the core
+stays deterministic and inspectable.
 
-## Target CLI
+## Status
+
+CCW is alpha software. CLI surfaces, artifact schemas, and workflow packaging
+details may still change as follow-on slices land.
+
+## Install
+
+CCW requires Python 3.11 or newer.
+
+For contributor or local development installs:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -e .
+```
+
+For a non-editable local install from a checkout:
+
+```bash
+pip install .
+```
+
+## Quickstart
 
 ```bash
 ccw init
@@ -25,7 +48,7 @@ ccw update --run ./conductor/runs/latest
 CCW also ships an MCP server so another project can call the deterministic core
 as tools instead of shelling out through the CLI.
 
-Install from a checkout:
+From a source checkout:
 
 ```bash
 pip install -e .
@@ -154,8 +177,8 @@ Any agent or model receiving a session bundle should:
    silently trusting stale context.
 
 This contract keeps CCW harness-agnostic. Provider-specific session
-attachment and workflow integration belong in the companion
-[ccw-stack](https://github.com/anomalyco/ccw-stack) repo.
+attachment and workflow integration belong in the companion `ccw-stack` repo,
+not in CCW core.
 
 ## Conductor workflow scaffold
 
@@ -176,8 +199,7 @@ This creates `ccw-code-task/` in the current directory with:
 
 The scaffold demonstrates how Conductor would call CCW as script steps.
 Full Conductor workflow packaging, harness adapters, and orchestrator-specific
-definitions live in the companion
-[ccw-stack](https://github.com/anomalyco/ccw-stack) repo.
+definitions belong in the companion `ccw-stack` repo, not in CCW core.
 
 Write the scaffold to an explicit path:
 
@@ -197,9 +219,7 @@ ccw conductor init --out /path/to/workflows
 
 - `wiki/user/architecture/ccw-mvp-prd.md`
 - `wiki/user/ops/plans/development-plan.md`
-- `wiki/user/ops/specs/phase-5b-portable-session-bundle-spec.md`
-- `wiki/user/ops/specs/phase-5a-mcp-server-spec.md`
-- `wiki/user/ops/specs/phase-4-context-compiler-spec.md`
+- `wiki/user/ops/specs/phase-5d-post-run-update-spec.md`
 - `wiki/user/architecture/ccw-stack-companion-boundary.md`
 - `wiki/user/architecture/sdlc/agentic-development-workflow.md`
 - `docs/adr/0001-use-microsoft-conductor-as-the-orchestrator.md`
@@ -214,9 +234,30 @@ edges, document artifacts, git signals, and snapshot output into
 `ccw episodes add` for explicit append-only project memory, and `ccw classify`
 for deterministic task classification, `ccw compile` and `ccw validate` for
 inspectable task-scoped context artifacts, `ccw-mcp` for agent-framework
-tool integration against external repos, and `ccw conductor init` for
-Conductor workflow scaffolding. Indexing now skips common runtime and
-cache directories such as `.git`, `.ccw`, `.venv`, `__pycache__`,
-`.pytest_cache`, `.ruff_cache`, and `*.egg-info`. Phase 5C Conductor workflow
-scaffolding is complete — `ccw conductor init` generates a sample pipeline
-workflow directory for orchestrator integration.
+tool integration against external repos, `ccw conductor init` for Conductor
+workflow scaffolding, and `ccw update --run ...` for post-run re-indexing plus
+episode and decision-fact recording. Indexing skips common runtime and cache
+directories such as `.git`, `.ccw`, `.venv`, `__pycache__`, `.pytest_cache`,
+`.ruff_cache`, and `*.egg-info`. Phase 5D post-run update support is complete;
+Phase 6 is the next follow-on slice.
+
+## Development
+
+Run the full deterministic validation suite before opening a pull request:
+
+```bash
+python -m unittest
+```
+
+See `CONTRIBUTING.md` for contribution flow and documentation expectations.
+
+## Community
+
+- Contribution guide: `CONTRIBUTING.md`
+- Code of conduct: `CODE_OF_CONDUCT.md`
+- Security reporting: `SECURITY.md`
+- Bug reports and feature requests: GitHub Issues
+
+## License
+
+CCW is licensed under the MIT License. See `LICENSE`.

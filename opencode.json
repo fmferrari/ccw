@@ -12,7 +12,7 @@
       "type": "local",
       "command": [".venv/bin/python", "-m", "ccw.mcp_server"],
       "environment": {
-        "CCW_TARGET_ROOT": "/Users/felipeferrari/Documents/ai/ccw"
+        "CCW_TARGET_ROOT": "."
       }
     }
   }
