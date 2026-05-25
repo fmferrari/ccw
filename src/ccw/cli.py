@@ -10,6 +10,7 @@ from ccw.episodes import add_episode
 from ccw.facts import add_fact
 from ccw.index import index_repository
 from ccw.init import init_local_state
+from ccw.session import prepare_session_bundle
 from ccw.validate import validate_compiled_artifact
 
 
@@ -50,6 +51,16 @@ def build_parser() -> argparse.ArgumentParser:
     compile_parser.add_argument("--mode", default=None, help="Explicit classification mode (skip auto-classify)")
     compile_parser.add_argument("path", nargs="?", default=".", help="Compile target path")
 
+    session_parser = subparsers.add_parser("session", help="Manage portable session bundles")
+    session_subparsers = session_parser.add_subparsers(dest="session_command", required=True)
+
+    session_prepare_parser = session_subparsers.add_parser("prepare", help="Prepare a portable session bundle")
+    session_prepare_parser.add_argument("--task", required=True, help="Task description text")
+    session_prepare_parser.add_argument("--budget", type=int, default=None, help="Override token budget")
+    session_prepare_parser.add_argument("--out-dir", type=Path, default=None, help="Session bundle output directory")
+    session_prepare_parser.add_argument("--mode", default=None, help="Explicit classification mode (skip auto-classify)")
+    session_prepare_parser.add_argument("path", nargs="?", default=".", help="Session target path")
+
     validate_parser = subparsers.add_parser("validate", help="Validate a compiled context artifact")
     validate_parser.add_argument("artifact", type=Path, help="Compiled artifact path to validate")
     validate_parser.add_argument("path", nargs="?", default=".", help="Target repository path")
@@ -87,6 +98,16 @@ def main(argv: list[str] | None = None) -> int:
                 budget=args.budget,
             )
             print(f"Compiled context written to: {output_path}")
+            return 0
+        if args.command == "session" and args.session_command == "prepare":
+            bundle_dir = prepare_session_bundle(
+                target=Path(args.path),
+                task_description=args.task,
+                output_dir=args.out_dir,
+                mode=args.mode,
+                budget=args.budget,
+            )
+            print(f"Session bundle written to: {bundle_dir}")
             return 0
         if args.command == "validate":
             from ccw.init import require_initialized_local_state, resolve_target_directory
