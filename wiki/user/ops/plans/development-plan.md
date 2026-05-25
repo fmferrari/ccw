@@ -186,8 +186,8 @@ MCP-capable agent clients.
 - [x] Packet A: expose init, index, facts, episodes, classify, compile, and validate as structured MCP tools
 - [x] Packet A: support explicit `target_path` inputs plus `CCW_TARGET_ROOT` for default external-repo targeting
 - [x] Packet A: add regression tests and README examples for attaching CCW to another project as an MCP server
-- [ ] Packet B1: add `ccw session prepare` and write a stable `.ccw/session/latest/` bundle layout
-- [ ] Packet B1: emit a model-facing `SESSION.md`, `compiled-context.md`, and `session.json`
+- [x] Packet B1: add `ccw session prepare` and write a stable `.ccw/session/latest/` bundle layout
+- [x] Packet B1: emit a model-facing `SESSION.md`, `compiled-context.md`, and `session.json`
 - [ ] Packet B2: include freshness and provenance metadata plus `ccw session validate`
 - [ ] Packet B2: fail loudly on missing files, mismatched bundle metadata, or stale compiled-artifact references
 - [ ] Packet B3: add regression tests and README examples for harness-agnostic session-bundle consumption
@@ -220,11 +220,11 @@ Current status:
 - Repository indexing now excludes common runtime/cache directories and
   `*.egg-info` metadata so MCP-driven indexing behaves on lived-in working
   trees, not just clean fixtures.
+- Packet B1 session-bundle writer/layout is implemented and validated.
 - Validation command: `python -m unittest`
 - Active slice spec: [[phase-5b-portable-session-bundle-spec]]
-- Execution note: treat the active slice as Packet B1 writer/layout, Packet B2
-  validator/freshness, then Packet B3 docs/tests before moving to Conductor
-  workflow scaffolding.
+- Execution note: treat the active slice as Packet B2 validator/freshness, then
+  Packet B3 docs/tests before moving to Conductor workflow scaffolding.
 - Follow-on work: portable session-bundle contract first, then Conductor
   workflow scaffolding, post-run `ccw update`, and configurable ignore-policy
   support beyond the built-in exclusions.

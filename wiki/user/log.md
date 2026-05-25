@@ -39,6 +39,8 @@ Append-only record of vault changes. Each entry starts with
 - architecture :: [[CONTEXT]] - defined model provider, harness, session, and portable brain terms to clarify the CCW versus `ccw-stack` runtime boundary
 - architecture :: [[phase-5b-portable-session-bundle-spec]] - decomposed the active Phase 5B slice into explicit workflow-ready work packets for writer/layout, validator/freshness, and docs/tests
 - architecture :: [[development-plan]] - split Phase 5B roadmap work into Packet B1/B2/B3 and added the active-slice execution note for workflow agents
+- architecture :: [[phase-5b-portable-session-bundle-spec]] - implemented Packet B1 by adding `ccw session prepare`, stable `.ccw/session/latest/` bundle output, model-facing `SESSION.md`, `compiled-context.md`, and `session.json`, with Packet B2 left as the next execution target
+- architecture :: [[development-plan]] - marked Packet B1 complete, recorded `python -m unittest` (107 tests) as the passing validation command, and advanced the active execution note to Packet B2 validator/freshness work
 
 ## 2026-05-24
 

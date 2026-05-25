@@ -73,6 +73,11 @@ README.md                 - portable session-bundle usage examples
 
 ## Work packets
 
+Current packet status:
+
+- Packet B1 is implemented and validated.
+- Packet B2 is the next execution target.
+
 ### Packet B1 - Session bundle writer and layout
 
 - Owner: `capability-developer`
