@@ -20,6 +20,69 @@ ccw validate .ccw/compiled/latest.md
 ccw update --run ./conductor/runs/latest
 ```
 
+## MCP server
+
+CCW also ships an MCP server so another project can call the deterministic core
+as tools instead of shelling out through the CLI.
+
+Install from a checkout:
+
+```bash
+pip install -e .
+```
+
+Run the server with a default target repo:
+
+```bash
+CCW_TARGET_ROOT=/path/to/project ccw-mcp
+```
+
+Available tools:
+
+- `init_repo`
+- `index_repo`
+- `record_fact`
+- `record_episode`
+- `classify_task`
+- `compile_task_context`
+- `validate_compiled_artifact`
+
+Tool calls may pass `target_path` explicitly. If omitted, CCW uses
+`CCW_TARGET_ROOT`. Relative artifact paths and output paths resolve against that
+target repo root.
+
+Example `.mcp.json` for another project:
+
+```json
+{
+  "mcpServers": {
+    "ccw": {
+      "command": "ccw-mcp",
+      "env": {
+        "CCW_TARGET_ROOT": "/path/to/project"
+      }
+    }
+  }
+}
+```
+
+Development config from a local checkout:
+
+```json
+{
+  "mcpServers": {
+    "ccw": {
+      "command": "/path/to/ccw/.venv/bin/python",
+      "args": ["-m", "ccw.mcp_server"],
+      "cwd": "/path/to/ccw",
+      "env": {
+        "CCW_TARGET_ROOT": "/path/to/project"
+      }
+    }
+  }
+}
+```
+
 ## Core idea
 
 - `Microsoft Conductor` is the deterministic workflow orchestrator.
@@ -32,10 +95,9 @@ ccw update --run ./conductor/runs/latest
 
 - `wiki/user/architecture/ccw-mvp-prd.md`
 - `wiki/user/ops/plans/development-plan.md`
-- `wiki/user/ops/specs/phase-3c-deterministic-task-classifier-spec.md`
-- `wiki/user/ops/specs/phase-3b-explicit-episodes-write-path-spec.md`
-- `wiki/user/ops/specs/phase-3a-explicit-facts-write-path-spec.md`
-- `wiki/user/ops/specs/phase-2c-deterministic-multi-language-graph-spec.md`
+- `wiki/user/ops/specs/phase-5b-portable-session-bundle-spec.md`
+- `wiki/user/ops/specs/phase-5a-mcp-server-spec.md`
+- `wiki/user/ops/specs/phase-4-context-compiler-spec.md`
 - `wiki/user/architecture/ccw-stack-companion-boundary.md`
 - `wiki/user/architecture/sdlc/agentic-development-workflow.md`
 - `docs/adr/0001-use-microsoft-conductor-as-the-orchestrator.md`
@@ -48,5 +110,11 @@ This repo now ships `ccw init` for deterministic local-state bootstrap and
 edges, document artifacts, git signals, and snapshot output into
 `.ccw/index.sqlite` and `.ccw/snapshots/index.json`, plus `ccw facts add`,
 `ccw episodes add` for explicit append-only project memory, and `ccw classify`
-for deterministic task classification. The active slice remains Phase 3C
-deterministic task classification until the next Phase 3 spec is frozen.
+for deterministic task classification, `ccw compile` and `ccw validate` for
+inspectable task-scoped context artifacts, and `ccw-mcp` for agent-framework
+tool integration against external repos. Indexing now skips common runtime and
+cache directories such as `.git`, `.ccw`, `.venv`, `__pycache__`,
+`.pytest_cache`, `.ruff_cache`, and `*.egg-info`. Phase 5A MCP server
+integration is complete. The active slice is Phase 5B portable session-bundle
+work so compiled artifacts become obviously consumable across providers and
+harnesses before Conductor-specific scaffolding lands.

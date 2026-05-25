@@ -216,6 +216,9 @@ class IndexCliTests(unittest.TestCase):
             write_text(target / "notes.txt", "plain text\n")
             write_text(target / "src" / "app.py", "print('hello')\n")
             write_text(target / ".git" / "HEAD", "ref: refs/heads/main\n")
+            write_text(target / "__pycache__" / "app.cpython-312.pyc", "bytecode\n")
+            write_text(target / ".venv" / "bin" / "python", "#!/usr/bin/env python\n")
+            write_text(target / "package.egg-info" / "PKG-INFO", "Name: fixture\n")
 
             symlink_path = target / "linked.py"
             symlink_created = False
@@ -253,6 +256,9 @@ class IndexCliTests(unittest.TestCase):
             indexed_paths = [path for path, *_ in rows]
             self.assertNotIn(".ccw/config.yaml", indexed_paths)
             self.assertNotIn(".git/HEAD", indexed_paths)
+            self.assertNotIn("__pycache__/app.cpython-312.pyc", indexed_paths)
+            self.assertNotIn(".venv/bin/python", indexed_paths)
+            self.assertNotIn("package.egg-info/PKG-INFO", indexed_paths)
             self.assertEqual(fetch_symbols_rows(database_path), [])
             self.assertEqual(fetch_edges_rows(database_path), [])
             self.assertEqual(

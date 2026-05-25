@@ -19,7 +19,18 @@ from ccw.init import require_initialized_local_state, resolve_target_directory
 from ccw.schema import bootstrap_index_database
 
 
-EXCLUDED_DIRECTORIES = {".ccw", ".git"}
+EXCLUDED_DIRECTORY_NAMES = {
+    ".ccw",
+    ".git",
+    ".venv",
+    "__pycache__",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".mypy_cache",
+    "node_modules",
+    "build",
+    "dist",
+}
 SNAPSHOT_FILE_NAME = "index.json"
 
 LANGUAGE_BY_SUFFIX = {
@@ -172,7 +183,7 @@ def _collect_source_files(target: Path) -> list[SourceFile]:
         directory_names[:] = [
             directory_name
             for directory_name in sorted(directory_names)
-            if directory_name not in EXCLUDED_DIRECTORIES and not (root_path / directory_name).is_symlink()
+            if not _is_excluded_directory_name(directory_name) and not (root_path / directory_name).is_symlink()
         ]
 
         for file_name in sorted(file_names):
@@ -193,6 +204,12 @@ def _collect_source_files(target: Path) -> list[SourceFile]:
             )
 
     return source_files
+
+
+def _is_excluded_directory_name(directory_name: str) -> bool:
+    if directory_name in EXCLUDED_DIRECTORY_NAMES:
+        return True
+    return directory_name.endswith(".egg-info")
 
 
 def _file_record(source_file: SourceFile, git_signal: GitSignal | None) -> FileRecord:
