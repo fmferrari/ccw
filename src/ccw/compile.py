@@ -345,7 +345,7 @@ def do_compile(
     return output_path
 
 
-def _compute_index_hash(database_path: Path) -> str:
+def compute_index_hash(database_path: Path) -> str:
     import hashlib
     try:
         with sqlite3.connect(database_path) as connection:

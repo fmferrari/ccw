@@ -103,3 +103,6 @@ Append-only record of vault changes. Each entry starts with
 - architecture :: [[phase-2c-deterministic-multi-language-graph-spec]] - archived the completed Phase 2 closeout spec while Phase 3 slice planning remains unfrozen
 - architecture :: [[development-plan]] - clarified that Phase 2 is complete, Phase 2C is the latest completed slice spec, and the next Phase 3 spec is not yet frozen
 - architecture :: [[agentic-development-workflow]] - clarified that Phase 2C is the latest completed slice contract until a new active slice is frozen
+
+- architecture :: [[phase-5b-portable-session-bundle-spec]] - implemented Packet B2: added `validate_session_bundle()` in `src/ccw/session.py` with required-file checks, cross-validation of session.json metadata against compiled-context.md frontmatter, and index_hash staleness detection; added `ccw session validate <bundle_dir> [path]` CLI surface; added unit tests (`tests/test_session.py`) and CLI tests (`tests/test_cli_session.py`); 133 tests pass
+- architecture :: [[development-plan]] - marked Phase 5B Packet B2 complete, updated test count to 133, and advanced the execution note to Packet B3 docs/tests as the next step

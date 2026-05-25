@@ -221,8 +221,8 @@ MCP-capable agent clients.
 - [x] Packet A: add regression tests and README examples for attaching CCW to another project as an MCP server
 - [x] Packet B1: add `ccw session prepare` and write a stable `.ccw/session/latest/` bundle layout
 - [x] Packet B1: emit a model-facing `SESSION.md`, `compiled-context.md`, and `session.json`
-- [ ] Packet B2: include freshness and provenance metadata plus `ccw session validate`
-- [ ] Packet B2: fail loudly on missing files, mismatched bundle metadata, or stale compiled-artifact references
+- [x] Packet B2: include freshness and provenance metadata plus `ccw session validate`
+- [x] Packet B2: fail loudly on missing files, mismatched bundle metadata, or stale compiled-artifact references
 - [ ] Packet B3: add regression tests and README examples for harness-agnostic session-bundle consumption
 - [ ] Packet C: add `ccw conductor init` for a starter workflow scaffold
 - [ ] Packet C: ship a sample `ccw-code-task` workflow that indexes and prepares a session bundle
@@ -255,13 +255,17 @@ Current status:
   `*.egg-info` metadata so MCP-driven indexing behaves on lived-in working
   trees, not just clean fixtures.
 - Packet B1 session-bundle writer/layout is implemented and validated.
-- Validation command: `python -m unittest` (120 tests)
+- Packet B2 session-bundle validation is implemented and validated:
+  `ccw session validate` checks required files, cross-validates mode/budget/index_hash/created_at
+  between session.json and compiled-context.md frontmatter, and checks index_hash staleness
+  against the current index when a target repo path is provided.
+- Validation command: `python -m unittest` (133 tests)
 - Active slice spec: [[phase-5b-portable-session-bundle-spec]]
-- Execution note: treat the active slice as Packet B2 validator/freshness, then
-  Packet B3 docs/tests before moving to Conductor workflow scaffolding.
-- Follow-on work: portable session-bundle contract first, then Conductor
-  workflow scaffolding, post-run `ccw update`, and configurable ignore-policy
-  support beyond the built-in exclusions.
+- Execution note: Packet B2 is complete. Next: Packet B3 docs/tests before
+  moving to Conductor workflow scaffolding.
+- Follow-on work: Packet B3 consumer guidance and README examples, then
+  Conductor workflow scaffolding, post-run `ccw update`, and configurable
+  ignore-policy support beyond the built-in exclusions.
 
 ## Phase 6 - Optional compression and post-run learning
 

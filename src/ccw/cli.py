@@ -10,7 +10,7 @@ from ccw.episodes import add_episode
 from ccw.facts import add_fact
 from ccw.index import index_repository
 from ccw.init import init_local_state
-from ccw.session import prepare_session_bundle
+from ccw.session import prepare_session_bundle, validate_session_bundle
 from ccw.validate import validate_compiled_artifact
 
 
@@ -61,6 +61,10 @@ def build_parser() -> argparse.ArgumentParser:
     session_prepare_parser.add_argument("--mode", default=None, help="Explicit classification mode (skip auto-classify)")
     session_prepare_parser.add_argument("path", nargs="?", default=".", help="Session target path")
 
+    session_validate_parser = session_subparsers.add_parser("validate", help="Validate a portable session bundle")
+    session_validate_parser.add_argument("bundle_dir", type=Path, help="Session bundle directory to validate")
+    session_validate_parser.add_argument("path", nargs="?", default=".", help="Target repository path for freshness check")
+
     validate_parser = subparsers.add_parser("validate", help="Validate a compiled context artifact")
     validate_parser.add_argument("artifact", type=Path, help="Compiled artifact path to validate")
     validate_parser.add_argument("path", nargs="?", default=".", help="Target repository path")
@@ -108,6 +112,17 @@ def main(argv: list[str] | None = None) -> int:
                 budget=args.budget,
             )
             print(f"Session bundle written to: {bundle_dir}")
+            return 0
+        if args.command == "session" and args.session_command == "validate":
+            errors = validate_session_bundle(
+                bundle_dir=args.bundle_dir,
+                target=Path(args.path),
+            )
+            if errors:
+                for error in errors:
+                    print(f"Error: {error}", file=sys.stderr)
+                return 1
+            print("Valid session bundle")
             return 0
         if args.command == "validate":
             from ccw.init import require_initialized_local_state, resolve_target_directory
