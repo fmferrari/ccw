@@ -5,6 +5,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from ccw.init import init_local_state
+from ccw.index import index_repository
 from ccw.session import prepare_session_bundle, validate_session_bundle
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -123,6 +125,50 @@ class ValidateSessionBundleTests(unittest.TestCase):
         (bundle_dir / "compiled-context.md").write_text("No frontmatter here\n", encoding="utf-8")
         errors = validate_session_bundle(bundle_dir)
         self.assertTrue(any("no frontmatter" in e for e in errors))
+
+
+
+class PrepareSessionBundleTests(unittest.TestCase):
+    def test_session_md_instructs_consumer_to_use_compiled_context_first(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            init_local_state(target)
+            src = target / "src"
+            src.mkdir()
+            (src / "auth.py").write_text("def login():\n    pass\n", encoding="utf-8")
+            index_repository(target)
+
+            bundle_dir = prepare_session_bundle(
+                target=target,
+                task_description="Fix login bug",
+            )
+            session_text = (bundle_dir / "SESSION.md").read_text(encoding="utf-8")
+
+            self.assertIn("before re-gathering", session_text)
+            self.assertIn("request a refreshed bundle", session_text)
+            self.assertIn("compiled-context.md", session_text)
+            self.assertIn("session.json", session_text)
+            self.assertIn("Fix login bug", session_text)
+
+    def test_session_md_includes_mode_in_instructions(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            init_local_state(target)
+            src = target / "src"
+            src.mkdir()
+            (src / "review.py").write_text("def review_changes():\n    pass\n", encoding="utf-8")
+            index_repository(target)
+
+            bundle_dir = prepare_session_bundle(
+                target=target,
+                task_description="Review auth code",
+                mode="review",
+            )
+            session_text = (bundle_dir / "SESSION.md").read_text(encoding="utf-8")
+
+            self.assertIn("before re-gathering", session_text)
+            self.assertIn("request a refreshed bundle", session_text)
+            self.assertIn("review", session_text)
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@
 type: architecture
 tags: [architecture, spec, slice, session, portability]
 created: 2026-05-25
-updated: 2026-05-25
+updated: 2026-05-26
 status: active
 ---
 
@@ -76,7 +76,8 @@ README.md                 - portable session-bundle usage examples
 Current packet status:
 
 - Packet B1 is implemented and validated.
-- Packet B2 is the next execution target.
+- Packet B2 is implemented and validated.
+- Packet B3 is implemented and validated.
 
 ### Packet B1 - Session bundle writer and layout
 
@@ -146,6 +147,18 @@ Current packet status:
   [[phase-5b-portable-session-bundle-spec]], `wiki/user/log.md`
 - Review lens: clarity for downstream agents, no chunk-dump regression, and doc
   accuracy against the shipped contract
+
+## ### Packet B3 - Implementation summary
+
+- `tests/test_session.py`: added `PrepareSessionBundleTests` with two tests that
+  call `prepare_session_bundle()` through the full init→index→prepare flow and
+  assert `SESSION.md` instructs consumption before re-gathering and requests
+  refresh on mismatch
+- `tests/test_cli_session.py`: extended `test_session_prepare_writes_default_bundle_layout`
+  to assert `SESSION.md` contains the "before re-gathering" and "request a
+  refreshed bundle" instructions
+- `README.md`: added a "Session bundle" section with file-only consumption
+  examples, a consumption contract table, and CLI snippets for prepare/validate
 
 ## Premortem summary
 

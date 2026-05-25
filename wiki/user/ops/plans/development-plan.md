@@ -2,7 +2,7 @@
 type: architecture
 tags: [architecture, plan, iterations]
 created: 2026-05-23
-updated: 2026-05-25
+updated: 2026-05-26
 status: active
 ---
 
@@ -223,7 +223,7 @@ MCP-capable agent clients.
 - [x] Packet B1: emit a model-facing `SESSION.md`, `compiled-context.md`, and `session.json`
 - [x] Packet B2: include freshness and provenance metadata plus `ccw session validate`
 - [x] Packet B2: fail loudly on missing files, mismatched bundle metadata, or stale compiled-artifact references
-- [ ] Packet B3: add regression tests and README examples for harness-agnostic session-bundle consumption
+- [x] Packet B3: add regression tests and README examples for harness-agnostic session-bundle consumption
 - [ ] Packet C: add `ccw conductor init` for a starter workflow scaffold
 - [ ] Packet C: ship a sample `ccw-code-task` workflow that indexes and prepares a session bundle
 - [ ] Packet C: support workflow-friendly file outputs for compiled artifacts and session bundles
@@ -261,11 +261,11 @@ Current status:
   against the current index when a target repo path is provided.
 - Validation command: `python -m unittest` (133 tests)
 - Active slice spec: [[phase-5b-portable-session-bundle-spec]]
-- Execution note: Packet B2 is complete. Next: Packet B3 docs/tests before
-  moving to Conductor workflow scaffolding.
-- Follow-on work: Packet B3 consumer guidance and README examples, then
-  Conductor workflow scaffolding, post-run `ccw update`, and configurable
-  ignore-policy support beyond the built-in exclusions.
+- Execution note: Packets B1-B3 are complete. Next: Conductor workflow
+  scaffolding (Packet C).
+- Validation command: `python -m unittest` (135 tests)
+- Follow-on work: Conductor workflow scaffolding, post-run `ccw update`, and
+  configurable ignore-policy support beyond the built-in exclusions.
 
 ## Phase 6 - Optional compression and post-run learning
 
