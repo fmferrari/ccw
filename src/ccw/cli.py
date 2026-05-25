@@ -12,6 +12,7 @@ from ccw.facts import add_fact
 from ccw.index import index_repository
 from ccw.init import init_local_state
 from ccw.session import prepare_session_bundle, validate_session_bundle
+from ccw.update import post_run_update
 from ccw.validate import validate_compiled_artifact
 
 
@@ -69,6 +70,12 @@ def build_parser() -> argparse.ArgumentParser:
     validate_parser = subparsers.add_parser("validate", help="Validate a compiled context artifact")
     validate_parser.add_argument("artifact", type=Path, help="Compiled artifact path to validate")
     validate_parser.add_argument("path", nargs="?", default=".", help="Target repository path")
+
+    update_parser = subparsers.add_parser("update", help="Post-run memory update")
+    update_parser.add_argument("--run", required=True, help="Summary of what the run accomplished")
+    update_parser.add_argument("--touched-files", required=True, help="Comma-separated list of files changed by the run")
+    update_parser.add_argument("--decision", default=None, help="Optional decision fact to record")
+    update_parser.add_argument("path", nargs="?", default=".", help="Update target path")
 
     conductor_parser = subparsers.add_parser("conductor", help="Manage Conductor workflow scaffolding")
     conductor_subparsers = conductor_parser.add_subparsers(dest="conductor_command", required=True)
@@ -131,6 +138,15 @@ def main(argv: list[str] | None = None) -> int:
                     print(f"Error: {error}", file=sys.stderr)
                 return 1
             print("Valid session bundle")
+            return 0
+        if args.command == "update":
+            post_run_update(
+                target=Path(args.path),
+                summary=args.run,
+                touched_files=args.touched_files,
+                decision=args.decision,
+            )
+            print("Post-run memory update recorded")
             return 0
         if args.command == "conductor" and args.conductor_command == "init":
             output_dir = args.out.expanduser()
