@@ -5,6 +5,10 @@ Append-only record of vault changes. Each entry starts with
 
 ## 2026-05-25
 
+- architecture :: [[development-plan]] — marked Phase 5C Conductor workflow scaffolding complete: implemented `ccw conductor init`, sample `ccw-code-task/` scaffold, and tests (3 new tests, 138 total)
+- architecture :: [[phase-5c-conductor-workflow-scaffold-spec]] — created Phase 5C spec and implemented all 3 work packets (CLI scaffold, tests, README)
+- architecture :: [[development-plan]] — updated current status to reflect completed Packet C and advanced follow-on work to Phase 5D post-run `ccw update`
+
 - architecture :: [[phase-45-compiler-pipeline-spec]] - created the Phase 4.5 contract for explicit compiler pass pipeline, Pass protocol, CompilationIR, and no-behavior-change refactoring of compile_context() into named passes
 - architecture :: [[development-plan]] - inserted Phase 4.5 compiler pipeline slice between Phase 4 and Phase 5, marked it as the current active slice, and advanced Phase 5B to archived status
 - architecture :: [[phase-45-compiler-pipeline-spec]] - implemented all 3 Phase 4.5 work packets (A-C): defined `CompilationIR`, `Pass` protocol, and `CompilationPipeline` runner; refactored `compile_context()` into `ResolveTaskPass`, `RankFilesPass`, `ExtractSnippetsPass`, `LoadMemoryPass`, and `AssemblePass` in `src/ccw/pipeline.py`; added `tests/test_pipeline.py` with 13 pipeline composition tests; no behavioral change, 120 total tests, golden tests pass unchanged

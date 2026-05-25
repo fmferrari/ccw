@@ -6,6 +6,7 @@ from pathlib import Path
 
 from ccw.classify import classify as classify_text
 from ccw.compile import do_compile
+from ccw.conductor import scaffold_conductor_workflow
 from ccw.episodes import add_episode
 from ccw.facts import add_fact
 from ccw.index import index_repository
@@ -69,6 +70,13 @@ def build_parser() -> argparse.ArgumentParser:
     validate_parser.add_argument("artifact", type=Path, help="Compiled artifact path to validate")
     validate_parser.add_argument("path", nargs="?", default=".", help="Target repository path")
 
+    conductor_parser = subparsers.add_parser("conductor", help="Manage Conductor workflow scaffolding")
+    conductor_subparsers = conductor_parser.add_subparsers(dest="conductor_command", required=True)
+
+    conductor_init_parser = conductor_subparsers.add_parser("init", help="Scaffold a sample ccw-code-task workflow directory")
+    conductor_init_parser.add_argument("--out", type=Path, default=".", help="Output directory for the scaffold")
+    conductor_init_parser.add_argument("path", nargs="?", default=".", help="Target repo path (used for resolving --out relative paths)")
+
     return parser
 
 
@@ -124,6 +132,14 @@ def main(argv: list[str] | None = None) -> int:
                 return 1
             print("Valid session bundle")
             return 0
+        if args.command == "conductor" and args.conductor_command == "init":
+            output_dir = args.out.expanduser()
+            if not output_dir.is_absolute():
+                output_dir = Path(args.path).resolve() / output_dir
+            scaffold_dir = scaffold_conductor_workflow(output_dir)
+            print(f"Conductor workflow scaffold written to: {scaffold_dir}")
+            return 0
+
         if args.command == "validate":
             from ccw.init import require_initialized_local_state, resolve_target_directory
 

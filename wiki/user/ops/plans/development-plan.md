@@ -2,7 +2,7 @@
 type: architecture
 tags: [architecture, plan, iterations]
 created: 2026-05-23
-updated: 2026-05-26
+updated: 2026-05-25
 status: active
 ---
 
@@ -224,9 +224,9 @@ MCP-capable agent clients.
 - [x] Packet B2: include freshness and provenance metadata plus `ccw session validate`
 - [x] Packet B2: fail loudly on missing files, mismatched bundle metadata, or stale compiled-artifact references
 - [x] Packet B3: add regression tests and README examples for harness-agnostic session-bundle consumption
-- [ ] Packet C: add `ccw conductor init` for a starter workflow scaffold
-- [ ] Packet C: ship a sample `ccw-code-task` workflow that indexes and prepares a session bundle
-- [ ] Packet C: support workflow-friendly file outputs for compiled artifacts and session bundles
+- [x] Packet C: add `ccw conductor init` for a starter workflow scaffold
+- [x] Packet C: ship a sample `ccw-code-task` workflow that indexes and prepares a session bundle
+- [x] Packet C: support workflow-friendly file outputs for compiled artifacts and session bundles
 - [ ] Packet D: add `ccw update --run ...` for post-run memory updates
 - [ ] Packet D: document the integration path for the companion `ccw-stack` planner, implementer, and reviewer workflows
 
@@ -259,13 +259,17 @@ Current status:
   `ccw session validate` checks required files, cross-validates mode/budget/index_hash/created_at
   between session.json and compiled-context.md frontmatter, and checks index_hash staleness
   against the current index when a target repo path is provided.
-- Validation command: `python -m unittest` (133 tests)
-- Active slice spec: [[phase-5b-portable-session-bundle-spec]]
-- Execution note: Packets B1-B3 are complete. Next: Conductor workflow
-  scaffolding (Packet C).
-- Validation command: `python -m unittest` (135 tests)
-- Follow-on work: Conductor workflow scaffolding, post-run `ccw update`, and
-  configurable ignore-policy support beyond the built-in exclusions.
+- Phase 5C Conductor workflow scaffolding is implemented and validated.
+- `ccw conductor init` scaffolds a `ccw-code-task/` directory with a sample
+  pipeline script (`bin/run.sh`) and README showing the init→index→classify→
+  compile→session prepare→session validate flow as deterministic script steps.
+- The scaffold stays within the companion boundary: CCW provides the template;
+  actual Conductor workflow definitions live in ccw-stack.
+- Validation command: `python -m unittest` (138 tests)
+- Active slice spec: [[phase-5b-portable-session-bundle-spec]] (archived)
+- Packet C is complete. Next: post-run `ccw update` (Packet D).
+- Follow-on work: implement `ccw update --run ...` for post-run memory updates
+  and document the ccw-stack integration path.
 
 ## Phase 6 - Optional compression and post-run learning
 

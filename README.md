@@ -157,6 +157,34 @@ This contract keeps CCW harness-agnostic. Provider-specific session
 attachment and workflow integration belong in the companion
 [ccw-stack](https://github.com/anomalyco/ccw-stack) repo.
 
+## Conductor workflow scaffold
+
+CCW ships a scaffold command that generates a sample workflow directory
+showing how the deterministic pipeline composes as script steps inside
+Microsoft Conductor or any workflow orchestrator:
+
+```bash
+ccw conductor init
+```
+
+This creates `ccw-code-task/` in the current directory with:
+
+| File | Role |
+|------|------|
+| `bin/run.sh` | Shell script showing the full pipeline: init → index → classify → compile → session prepare → session validate |
+| `README.md` | Explains each step, the consumption contract, and the companion boundary |
+
+The scaffold demonstrates how Conductor would call CCW as script steps.
+Full Conductor workflow packaging, harness adapters, and orchestrator-specific
+definitions live in the companion
+[ccw-stack](https://github.com/anomalyco/ccw-stack) repo.
+
+Write the scaffold to an explicit path:
+
+```bash
+ccw conductor init --out /path/to/workflows
+```
+
 ## Core idea
 
 - `Microsoft Conductor` is the deterministic workflow orchestrator.
@@ -185,10 +213,10 @@ edges, document artifacts, git signals, and snapshot output into
 `.ccw/index.sqlite` and `.ccw/snapshots/index.json`, plus `ccw facts add`,
 `ccw episodes add` for explicit append-only project memory, and `ccw classify`
 for deterministic task classification, `ccw compile` and `ccw validate` for
-inspectable task-scoped context artifacts, and `ccw-mcp` for agent-framework
-tool integration against external repos. Indexing now skips common runtime and
+inspectable task-scoped context artifacts, `ccw-mcp` for agent-framework
+tool integration against external repos, and `ccw conductor init` for
+Conductor workflow scaffolding. Indexing now skips common runtime and
 cache directories such as `.git`, `.ccw`, `.venv`, `__pycache__`,
-`.pytest_cache`, `.ruff_cache`, and `*.egg-info`. Phase 5A MCP server
-integration is complete. The active slice is Phase 5B portable session-bundle
-work so compiled artifacts become obviously consumable across providers and
-harnesses before Conductor-specific scaffolding lands.
+`.pytest_cache`, `.ruff_cache`, and `*.egg-info`. Phase 5C Conductor workflow
+scaffolding is complete — `ccw conductor init` generates a sample pipeline
+workflow directory for orchestrator integration.
