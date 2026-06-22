@@ -77,7 +77,30 @@ def _latest_compilation(database_path: Path, output_path: Path) -> dict[str, int
 
 @mcp.tool()
 def init_repo(target_path: str = "") -> dict[str, str]:
-    """Initialize CCW local state for a repository."""
+    """Initialize CCW local state for a repository.
+
+    Call this FIRST on any repo before calling any other CCW tool.
+    Creates a `.ccw/` directory with SQLite database and config file.
+    Safe to call again on an already-initialized repo (idempotent).
+
+    Full workflow order:
+      1. init_repo      — run once per repo (or after a clean)
+      2. index_repo     — run after init and after any file changes
+      3. record_fact    — optional: add constraints/decisions that code doesn't capture
+      4. prepare_session — compile + package context for a specific task
+      5. validate_session — confirm the bundle is fresh before handing to a model
+      6. update_memory  — run after a task completes to record what changed
+
+    Args:
+        target_path: Absolute path to the repository root. If empty, uses the
+                     CCW_TARGET_ROOT environment variable, then the current directory.
+
+    Returns:
+        target_path: Resolved absolute path to the repo root.
+        state_dir: Path to the created `.ccw/` directory.
+        database_path: Path to the SQLite index database.
+        config_path: Path to the CCW config file.
+    """
     target = _resolve_target_path(target_path)
     state_dir = init_local_state(target)
     return {
@@ -90,7 +113,29 @@ def init_repo(target_path: str = "") -> dict[str, str]:
 
 @mcp.tool()
 def index_repo(target_path: str = "") -> dict[str, int | str]:
-    """Index a repository into deterministic CCW local state."""
+    """Index a repository into deterministic CCW local state.
+
+    Walks the repo and extracts files, symbols (classes, functions), import/export
+    edges, git recency signals, and document artifacts into a local SQLite database.
+    Must be called after init_repo and again whenever files change (update_memory
+    does this automatically as part of post-run bookkeeping).
+
+    Excluded automatically: .git, .venv, __pycache__, node_modules, browser-data,
+    .playwright-profile, logs, tmp, build, dist, and other common cache directories.
+
+    Args:
+        target_path: Absolute path to the repository root. Defaults to CCW_TARGET_ROOT
+                     or the current directory.
+
+    Returns:
+        target_path: Resolved repo root.
+        database_path: Path to the updated SQLite index.
+        snapshot_path: Path to the JSON snapshot of the index.
+        file_count: Total indexed files.
+        symbol_count: Total extracted symbols (classes, functions).
+        edge_count: Total import/export edges.
+        artifact_count: Total document artifacts (markdown, yaml, json).
+    """
     target = _resolve_target_path(target_path)
     database_path = index_repository(target)
     payload: dict[str, int | str] = {
@@ -104,7 +149,34 @@ def index_repo(target_path: str = "") -> dict[str, int | str]:
 
 @mcp.tool()
 def record_fact(kind: str, text: str, target_path: str = "") -> dict[str, str]:
-    """Append one explicit project fact."""
+    """Append one explicit project fact that the raw code does not capture.
+
+    Facts are injected into every future compiled context artifact, giving a model
+    architectural memory that persists across tasks. Use this to record constraints,
+    decisions, and preferences before compiling context for a task.
+
+    Valid kind values:
+        "constraint"  — a hard rule the implementation must not violate
+                        (e.g. "Never log plaintext passwords")
+        "decision"    — an architecture or design choice that was made
+                        (e.g. "Hermes owns Telegram transport; direct-runner is fallback")
+        "preference"  — a style or convention preference
+                        (e.g. "Use dataclasses over dicts for structured data")
+        "goal"        — a high-level objective for the project
+
+    Facts are append-only. To supersede a fact, add a new one with the same kind
+    and a note that it replaces the previous one.
+
+    Args:
+        kind: Category of fact. Validated lowercase values: constraint, decision,
+              preference, goal.
+        text: The fact content. Be specific and actionable.
+        target_path: Repo root. Defaults to CCW_TARGET_ROOT.
+
+    Returns:
+        kind: Normalized kind that was stored.
+        text: The fact text that was stored.
+    """
     target = _resolve_target_path(target_path)
     database_path = persist_fact(target, kind, text)
     return {
@@ -117,7 +189,28 @@ def record_fact(kind: str, text: str, target_path: str = "") -> dict[str, str]:
 
 @mcp.tool()
 def record_episode(summary: str, touched_files: list[str], target_path: str = "") -> dict[str, object]:
-    """Append one explicit completed-run episode."""
+    """Append one explicit completed-run episode to the project memory.
+
+    Episodes are run-history entries: what was done, when, and which files changed.
+    They appear in the 'Episodes' section of future compiled context artifacts so
+    a model has grounded run history without reading chat transcripts.
+
+    Prefer update_memory over calling record_episode directly: update_memory also
+    re-indexes the repo so the next compile sees current file state. Use
+    record_episode directly only when you want to record a past event without
+    triggering a re-index.
+
+    Args:
+        summary: One-sentence description of what the run accomplished.
+                 Example: "Fixed the login handler to reject empty credentials."
+        touched_files: List of repo-relative file paths that were modified.
+                       Example: ["src/auth/login.py", "tests/test_login.py"]
+        target_path: Repo root. Defaults to CCW_TARGET_ROOT.
+
+    Returns:
+        summary: The summary that was stored.
+        touched_files: Normalized list of file paths that were stored.
+    """
     target = _resolve_target_path(target_path)
     normalized_files = [str(path).strip() for path in touched_files if str(path).strip()]
     database_path = persist_episode(target, summary, ",".join(normalized_files))
@@ -131,7 +224,31 @@ def record_episode(summary: str, touched_files: list[str], target_path: str = ""
 
 @mcp.tool()
 def classify_task(task_description: str, target_path: str = "") -> dict[str, str]:
-    """Classify a task into a deterministic CCW mode."""
+    """Classify a task description into a deterministic CCW compile mode.
+
+    Classification is keyword-based and deterministic — no LLM involved.
+    The returned mode controls which recipe (file cap, section weights, token budget)
+    is used by compile_task_context and prepare_session.
+
+    Modes and their default budgets:
+        bugfix         — 6,000 tokens. Prioritizes the fewest relevant files and
+                         tests. Use for defect fixes.
+        implementation — 8,000 tokens. Broader file surface. Use for new features.
+        review         — 8,000 tokens. Emphasizes tests and recent changes.
+        refactor       — 10,000 tokens. Widest file surface. Use for restructuring.
+
+    You do not need to call this explicitly: prepare_session and
+    compile_task_context both auto-classify when mode is not supplied.
+    Call it directly only when you want to inspect or override the mode.
+
+    Args:
+        task_description: Free-text description of the task.
+        target_path: Repo root. Defaults to CCW_TARGET_ROOT.
+
+    Returns:
+        mode: One of bugfix | implementation | review | refactor.
+        task_description: The input text that was classified.
+    """
     target = _resolve_target_path(target_path)
     mode = classify_text(target, task_description)
     return {
@@ -149,7 +266,38 @@ def compile_task_context(
     mode: str = "",
     budget: int = 0,
 ) -> dict[str, int | str]:
-    """Compile a task-scoped context artifact for a repository."""
+    """Compile a bounded, grounded, task-scoped context artifact for a repository.
+
+    Runs the full compiler pipeline: classify → recipe → rank files → extract
+    snippets → load facts and episodes → assemble → render to markdown.
+    The output is a single markdown file with YAML frontmatter that a model can
+    read as its authoritative view of the repo for this task.
+
+    Use prepare_session instead when you want a portable bundle (SESSION.md +
+    compiled-context.md + session.json) ready for direct model consumption.
+    Use compile_task_context when you only need the compiled artifact path and
+    metadata, or want a custom output location.
+
+    The artifact cites only real indexed file paths. Run validate_compiled_artifact
+    to confirm this after compile.
+
+    Args:
+        task_description: Free-text description of the task. Used for ranking
+                          and classification.
+        target_path: Repo root. Defaults to CCW_TARGET_ROOT.
+        output_path: Where to write the artifact. Relative paths resolve against
+                     target_path. Defaults to .ccw/compiled/latest.md.
+        mode: Override compile mode. One of: bugfix, implementation, review,
+              refactor. If empty, auto-classifies from task_description.
+        budget: Override token budget. If 0, uses the recipe default for the mode.
+
+    Returns:
+        artifact_path: Absolute path to the compiled markdown artifact.
+        mode: The mode used (auto-detected or overridden).
+        budget: The token budget applied.
+        task: The task description stored with the compilation record.
+        created_at: ISO 8601 timestamp of the compilation.
+    """
     target = _resolve_target_path(target_path)
     resolved_output_path = _resolve_repo_path(target, output_path, "Output path") if output_path.strip() else None
     resolved_budget = budget if budget > 0 else None
@@ -183,7 +331,48 @@ def prepare_session(
     mode: str = "",
     budget: int = 0,
 ) -> dict[str, object]:
-    """Prepare a portable session bundle that a model can consume on a first or later turn."""
+    """Compile and package a portable session bundle for a task.
+
+    This is the PRIMARY tool for giving a model grounded task context.
+    It compiles a bounded context artifact and wraps it in three files:
+
+        SESSION.md           — model-facing entry point. Instructs the model to
+                               read compiled-context.md before re-gathering repo
+                               context and to request a refresh if the bundle is stale.
+        compiled-context.md  — the grounded, budgeted context artifact with ranked
+                               files, line-anchored snippets, facts, episodes, and
+                               constraints.
+        session.json         — machine-readable metadata: task, mode, budget,
+                               index_hash, and created_at timestamp.
+
+    After receiving the bundle, a model should:
+      1. Read SESSION.md for instructions.
+      2. Use compiled-context.md as the authoritative repo state for the task.
+      3. Check session.json.index_hash — if it no longer matches the current
+         index, call prepare_session again to get a fresh bundle.
+
+    Run validate_session after prepare_session to confirm the bundle is internally
+    consistent and the index_hash is current before handing it to a model.
+
+    Args:
+        task_description: Free-text description of the task.
+        target_path: Repo root. Defaults to CCW_TARGET_ROOT.
+        output_dir: Where to write the bundle directory. Relative paths resolve
+                    against target_path. Defaults to .ccw/session/latest/.
+        mode: Override compile mode: bugfix | implementation | review | refactor.
+              If empty, auto-classifies.
+        budget: Override token budget. If 0, uses the recipe default.
+
+    Returns:
+        bundle_dir: Absolute path to the session bundle directory.
+        session_file: Absolute path to SESSION.md (model entry point).
+        compiled_artifact: Absolute path to compiled-context.md.
+        manifest_path: Absolute path to session.json.
+        mode: Compile mode used.
+        budget: Token budget applied.
+        index_hash: Short hash of the index state at compile time.
+        created_at: ISO 8601 timestamp.
+    """
     target = _resolve_target_path(target_path)
     resolved_output_dir = Path(output_dir.strip()) if output_dir.strip() else None
     resolved_budget = budget if budget > 0 else None
@@ -216,7 +405,25 @@ def prepare_session(
 
 @mcp.tool()
 def validate_session(bundle_dir: str, target_path: str = "") -> dict[str, object]:
-    """Validate a portable session bundle and check freshness against the current index."""
+    """Validate a portable session bundle and check freshness against the current index.
+
+    Checks that SESSION.md, compiled-context.md, and session.json all exist, that
+    the manifest metadata matches the compiled artifact frontmatter, and that the
+    stored index_hash still matches the current repo index.
+
+    A bundle becomes stale when files in the repo change after the bundle was
+    prepared (e.g. after update_memory re-indexes). Always validate before
+    handing a bundle to a model, and call prepare_session to refresh a stale bundle.
+
+    Args:
+        bundle_dir: Path to the session bundle directory. Relative paths resolve
+                    against target_path.
+        target_path: Repo root used for freshness check. Defaults to CCW_TARGET_ROOT.
+
+    Returns:
+        valid: True if the bundle is internally consistent and index_hash is current.
+        errors: List of error strings. Empty when valid is True.
+    """
     target = _resolve_target_path(target_path)
     resolved_bundle_dir = _resolve_repo_path(target, bundle_dir, "Bundle directory")
     errors = validate_session_bundle(bundle_dir=resolved_bundle_dir, target=target)
@@ -235,7 +442,38 @@ def update_memory(
     decision: str = "",
     target_path: str = "",
 ) -> dict[str, object]:
-    """Record a post-run memory update: re-index, append an episode, and optionally a decision fact."""
+    """Record a post-run memory update: re-index the repo, append an episode, and optionally a decision fact.
+
+    Call this after completing any task that changed files. It does three things
+    in one call:
+      1. Re-runs index_repo so the next compile sees the current file state.
+      2. Appends an episode (run summary + touched files) to the project memory.
+      3. Optionally appends a decision fact if a key architecture choice was made.
+
+    This is what closes the memory loop: the episode recorded here appears in
+    the Episodes section of the next compiled context, giving future models
+    grounded run history without reading chat transcripts.
+
+    After update_memory, any previously prepared session bundle is stale
+    (its index_hash no longer matches). Call prepare_session again for the
+    next task.
+
+    Args:
+        summary: One-sentence description of what was accomplished.
+                 Example: "Fixed the login handler to reject empty credentials."
+        touched_files: Repo-relative paths of files that were modified.
+                       Example: ["src/auth/login.py", "tests/test_login.py"]
+        decision: Optional architecture or design decision to record as a fact.
+                  Example: "Always validate credentials before creating a session."
+                  If provided, stored as kind=decision for future compiles.
+        target_path: Repo root. Defaults to CCW_TARGET_ROOT.
+
+    Returns:
+        summary: The summary that was stored.
+        touched_files: Normalized list of file paths.
+        decision: The decision fact text, or empty string if none was provided.
+        state_dir: Path to the .ccw/ directory where state was updated.
+    """
     target = _resolve_target_path(target_path)
     normalized_files = [str(path).strip() for path in touched_files if str(path).strip()]
     resolved_decision = decision.strip() or None
@@ -256,7 +494,28 @@ def update_memory(
 
 @mcp.tool()
 def validate_compiled_artifact(artifact_path: str, target_path: str = "") -> dict[str, object]:
-    """Validate one compiled context artifact."""
+    """Validate one compiled context artifact for correctness and grounding.
+
+    Checks that the artifact has valid YAML frontmatter with all required keys
+    (mode, budget, index_hash, created_at), required sections (Task), and that
+    every file path cited in the artifact exists in the current index. An artifact
+    that passes validation contains no invented paths and is safe to hand to a model.
+
+    You do not normally need to call this manually: prepare_session produces
+    a valid artifact by construction. Use this for debugging or when consuming
+    an artifact produced by compile_task_context with a custom output path.
+
+    Args:
+        artifact_path: Path to the compiled markdown artifact. Relative paths
+                       resolve against target_path.
+        target_path: Repo root used to locate the index for path validation.
+                     Defaults to CCW_TARGET_ROOT.
+
+    Returns:
+        valid: True if all checks pass.
+        errors: List of error strings describing failures. Empty when valid is True.
+        artifact_path: Absolute path to the artifact that was checked.
+    """
     target = _resolve_target_path(target_path)
     resolved_artifact_path = _resolve_repo_path(target, artifact_path, "Artifact path")
 

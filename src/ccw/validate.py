@@ -66,12 +66,16 @@ def validate_compiled_artifact(
         indexed_paths = set()
 
     if indexed_paths:
-        # Find all backtick-quoted paths in the artifact
-        referenced_paths = set(re.findall(r"`([^`]+)`", text))
+        # Find file-citation lines: lines of the form "- `path/to/file.ext` (score: ...)"
+        # This is the exact format the renderer uses; it avoids false positives from
+        # code snippets inside triple-backtick blocks.
+        referenced_paths = set(
+            m.group(1)
+            for m in re.finditer(r"^- `([^`]+)`", text, re.MULTILINE)
+            if "." in m.group(1)
+        )
         for ref_path in referenced_paths:
-            # Only check paths that look like file paths with extensions
-            if "." in ref_path and "/" in ref_path:
-                if ref_path not in indexed_paths:
-                    errors.append(f"Referenced file path not in index: {ref_path}")
+            if ref_path not in indexed_paths:
+                errors.append(f"Referenced file path not in index: {ref_path}")
 
     return errors

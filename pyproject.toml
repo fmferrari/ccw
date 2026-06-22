@@ -9,6 +9,9 @@ description = "Deterministic context compiler for small-window coding models"
 readme = "README.md"
 requires-python = ">=3.11"
 license = {file = "LICENSE"}
+authors = [
+    {name = "Felipe Ferrari", email = "fmferrari@github.com"},
+]
 keywords = [
     "context compiler",
     "developer tools",
@@ -23,6 +26,7 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Libraries",
 ]
 dependencies = [

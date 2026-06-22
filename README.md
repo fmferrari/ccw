@@ -34,17 +34,48 @@ asserts each claim deterministically without an LLM.
 
 Requires Python 3.11 or newer.
 
+**Stable install from PyPI:**
+
 ```bash
-python -m venv .venv
-source .venv/bin/activate
+pip install ccw
+```
+
+**Isolated CLI install (recommended — keeps ccw out of your project's environment):**
+
+```bash
+pipx install ccw
+```
+
+**Zero-install MCP server launch via [uv](https://github.com/astral-sh/uv):**
+
+```bash
+uvx ccw-mcp
+```
+
+**Install through Microsoft APM:**
+
+```bash
+apm install fmferrari/ccw --target copilot
+```
+
+This package publishes CCW as an APM package that installs the MCP server
+declaration into supported harnesses. The server itself is launched with
+`uvx ccw-mcp`, so consumers need both `apm` and `uv` available on `PATH`.
+
+**Development install from source:**
+
+```bash
+git clone https://github.com/fmferrari/ccw
+cd ccw
+python -m venv .venv && source .venv/bin/activate
 pip install -e .
 ```
 
-The `mcp` dependency installs automatically. Verify the install:
+The `mcp` dependency installs automatically. Verify:
 
 ```bash
 ccw --help
-ccw-mcp --version 2>/dev/null || python -c "import ccw, mcp; print('ccw + mcp OK')"
+python -c "import ccw; print(ccw.__version__)"
 ```
 
 ## End-to-end demo
@@ -105,9 +136,12 @@ Token budgets per mode:
 ## MCP server
 
 `ccw-mcp` exposes the full pipeline as MCP tools so an agent framework can
-drive the entire loop without shelling out.
+drive the entire loop without shelling out. The target repo is set via the
+`CCW_TARGET_ROOT` environment variable or the `target_path` parameter on each
+tool call.
 
 ```bash
+# Manual launch (for testing)
 CCW_TARGET_ROOT=/path/to/project ccw-mcp
 ```
 
@@ -129,7 +163,63 @@ Available tools:
 Every tool accepts an explicit `target_path`. If omitted, CCW reads
 `CCW_TARGET_ROOT` from the environment.
 
-### `.mcp.json` for another project
+## APM distribution
+
+CCW can also be consumed as a Microsoft APM package. In APM terms, this repo is
+primarily an MCP primitive package: when a consumer runs `apm install`, APM
+writes the `ccw` MCP server entry into each detected harness config.
+
+Consumer install:
+
+```bash
+apm install fmferrari/ccw --target copilot
+```
+
+What APM installs for the consumer is equivalent to this self-defined MCP
+server declaration:
+
+```yaml
+dependencies:
+  mcp:
+    - name: ccw
+      registry: false
+      transport: stdio
+      command: uvx
+      args: ["ccw-mcp"]
+```
+
+Important constraints:
+
+- APM distributes the harness configuration, not the Python wheel.
+- `uvx ccw-mcp` is what makes the server portable here: `uvx` resolves and runs
+  the PyPI package on demand.
+- If the harness does not launch the MCP server from the repo root, pass
+  `target_path` explicitly on tool calls or set `CCW_TARGET_ROOT` in the
+  generated config.
+- Because this is a self-defined MCP server (`registry: false`), consumers
+  should install it as a direct dependency, not rely on it flowing transitively.
+
+### Connecting CCW to your project
+
+Add this to your project's `.mcp.json` (or equivalent harness config).
+
+**Option A — zero-install via `uvx` (recommended if you have [uv](https://github.com/astral-sh/uv)):**
+
+```json
+{
+  "mcpServers": {
+    "ccw": {
+      "command": "uvx",
+      "args": ["ccw-mcp"],
+      "env": {
+        "CCW_TARGET_ROOT": "/absolute/path/to/your/project"
+      }
+    }
+  }
+}
+```
+
+**Option B — after `pip install ccw` or `pipx install ccw`:**
 
 ```json
 {
@@ -137,14 +227,14 @@ Every tool accepts an explicit `target_path`. If omitted, CCW reads
     "ccw": {
       "command": "ccw-mcp",
       "env": {
-        "CCW_TARGET_ROOT": "/path/to/project"
+        "CCW_TARGET_ROOT": "/absolute/path/to/your/project"
       }
     }
   }
 }
 ```
 
-Development config from a local checkout:
+**Option C — development checkout:**
 
 ```json
 {
@@ -152,14 +242,33 @@ Development config from a local checkout:
     "ccw": {
       "command": "/path/to/ccw/.venv/bin/python",
       "args": ["-m", "ccw.mcp_server"],
-      "cwd": "/path/to/ccw",
       "env": {
-        "CCW_TARGET_ROOT": "/path/to/project"
+        "CCW_TARGET_ROOT": "/absolute/path/to/your/project"
       }
     }
   }
 }
 ```
+
+### `.ccw/` in your target repo
+
+CCW creates a `.ccw/` directory at your project root. The SQLite database
+(`.ccw/index.sqlite`) stores both the regenerable file index and your durable
+project memory (facts and episodes).
+
+**Recommended `.gitignore` additions for your project:**
+
+```gitignore
+# CCW ephemeral artifacts — regenerated on demand
+.ccw/compiled/
+.ccw/session/
+.ccw/snapshots/
+```
+
+Leave `.ccw/index.sqlite` and `.ccw/config.yaml` **uncommitted** if CCW is
+personal tooling, or **commit them** if you want the team to share facts and
+episodes across clones. Either works; the index portion regenerates in seconds
+with `ccw index`.
 
 ## Session bundle
 

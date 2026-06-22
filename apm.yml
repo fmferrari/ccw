@@ -1,11 +1,18 @@
 name: ccw
 version: 0.1.0
 description: "Deterministic context compiler for small-window coding models"
+author: Felipe Ferrari
+license: MIT
 targets:
   - copilot
   - cursor
   - opencode
 dependencies:
   apm: []
-  mcp: []
+  mcp:
+    - name: ccw
+      registry: false
+      transport: stdio
+      command: uvx
+      args: ["ccw-mcp"]
 includes: auto
