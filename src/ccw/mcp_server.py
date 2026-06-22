@@ -121,7 +121,8 @@ def index_repo(target_path: str = "") -> dict[str, int | str]:
     does this automatically as part of post-run bookkeeping).
 
     Excluded automatically: .git, .venv, __pycache__, node_modules, browser-data,
-    .playwright-profile, logs, tmp, build, dist, and other common cache directories.
+    .playwright-profile, .openclaw, logs, tmp, build, dist, and other common cache
+    directories.
 
     Args:
         target_path: Absolute path to the repository root. Defaults to CCW_TARGET_ROOT

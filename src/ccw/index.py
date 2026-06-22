@@ -56,6 +56,8 @@ EXCLUDED_DIRECTORY_NAMES = {
     ".logs",
     "tmp",
     ".tmp",
+    # Harness runtime state
+    ".openclaw",
 }
 SNAPSHOT_FILE_NAME = "index.json"
 
@@ -634,7 +636,7 @@ def _collect_git_signals(target: Path, source_files: list[SourceFile]) -> dict[s
         return {}
 
     git_root = Path(result.stdout.strip())
-    signals: dict[str, GitSignal] = {}
+    git_paths_by_source_path: dict[str, str] = {}
 
     for source_file in source_files:
         try:
@@ -642,47 +644,75 @@ def _collect_git_signals(target: Path, source_files: list[SourceFile]) -> dict[s
         except ValueError:
             continue
 
-        signal = _git_signal_for_path(git_root, git_relative_path)
-        if signal is not None:
-            signals[source_file.path] = signal
+        git_paths_by_source_path[source_file.path] = git_relative_path
 
-    return signals
+    if not git_paths_by_source_path:
+        return {}
 
-
-def _git_signal_for_path(git_root: Path, git_relative_path: str) -> GitSignal | None:
     try:
-        latest_result = subprocess.run(
-            ["git", "log", "-1", "--format=%ct%x00%ae", "--", git_relative_path],
-            cwd=git_root,
-            text=True,
-            capture_output=True,
-            check=True,
-        )
-        author_result = subprocess.run(
-            ["git", "log", "--format=%ae", "--", git_relative_path],
+        target_pathspec = target.relative_to(git_root).as_posix()
+    except ValueError:
+        target_pathspec = "."
+    if target_pathspec == ".":
+        target_pathspec = "."
+
+    return _collect_git_signals_from_log(git_root, target_pathspec, git_paths_by_source_path)
+
+
+def _collect_git_signals_from_log(
+    git_root: Path,
+    target_pathspec: str,
+    git_paths_by_source_path: dict[str, str],
+) -> dict[str, GitSignal]:
+    source_paths_by_git_path = {git_path: source_path for source_path, git_path in git_paths_by_source_path.items()}
+
+    try:
+        result = subprocess.run(
+            ["git", "log", "--format=%ct%x00%ae", "--name-only", "--", target_pathspec],
             cwd=git_root,
             text=True,
             capture_output=True,
             check=True,
         )
     except subprocess.CalledProcessError:
-        return None
+        return {}
 
-    latest_output = latest_result.stdout.strip()
-    author_lines = [line.strip() for line in author_result.stdout.splitlines() if line.strip()]
-    if not latest_output or not author_lines:
-        return None
+    latest_by_source_path: dict[str, tuple[int, str]] = {}
+    owners_by_source_path: dict[str, Counter[str]] = {}
+    current_commit: tuple[int, str] | None = None
 
-    raw_timestamp, raw_last_author = latest_output.split("\x00", 1)
-    owner_counts = Counter(author_lines)
-    owner_email, owner_commit_count = sorted(owner_counts.items(), key=lambda item: (-item[1], item[0]))[0]
+    for line in result.stdout.splitlines():
+        if not line:
+            continue
+        if "\x00" in line:
+            raw_timestamp, raw_author = line.split("\x00", 1)
+            try:
+                current_commit = (int(raw_timestamp), raw_author)
+            except ValueError:
+                current_commit = None
+            continue
+        if current_commit is None:
+            continue
 
-    return GitSignal(
-        last_commit_at=int(raw_timestamp),
-        last_author_email=raw_last_author,
-        owner_email=owner_email,
-        owner_commit_count=owner_commit_count,
-    )
+        source_path = source_paths_by_git_path.get(line)
+        if source_path is None:
+            continue
+
+        latest_by_source_path.setdefault(source_path, current_commit)
+        owners_by_source_path.setdefault(source_path, Counter())[current_commit[1]] += 1
+
+    signals: dict[str, GitSignal] = {}
+    for source_path, (last_commit_at, last_author_email) in latest_by_source_path.items():
+        owner_counts = owners_by_source_path[source_path]
+        owner_email, owner_commit_count = sorted(owner_counts.items(), key=lambda item: (-item[1], item[0]))[0]
+        signals[source_path] = GitSignal(
+            last_commit_at=last_commit_at,
+            last_author_email=last_author_email,
+            owner_email=owner_email,
+            owner_commit_count=owner_commit_count,
+        )
+
+    return signals
 
 
 def _collect_test_edges(source_files: list[SourceFile], import_edges: list[EdgeRecord]) -> list[EdgeRecord]:
