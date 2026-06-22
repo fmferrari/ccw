@@ -325,7 +325,7 @@ def do_compile(
     rendered = render_compiled_context(ctx)
 
     if output_path is None:
-        output_path = resolved_target / ".ccw" / "compiled" / "compile-output.md"
+        output_path = resolved_target / ".ccw" / "compiled" / "latest.md"
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(rendered, encoding="utf-8")
