@@ -6,13 +6,19 @@ those files before editing inside that subtree.
 
 ## Read These First (every session)
 
-1. `wiki/AGENTS.md` - project knowledge and retrieval contract.
-2. `wiki/user/index.md` - canonical architecture index.
-3. Last ~30 lines of `wiki/user/log.md` - recent design and planning changes.
+1. `wiki/AGENTS.md` - project knowledge and retrieval contract (when local
+  private wiki is mounted).
+2. `wiki/user/index.md` - canonical architecture index (when local private wiki
+  is mounted).
+3. Last ~30 lines of `wiki/user/log.md` - recent design and planning changes
+  (when local private wiki is mounted).
 4. `CONTEXT.md` - canonical vocabulary for CCW, compiled context, facts,
    episodes, and Conductor integration.
 
 Only then open `README.md` or deeper architecture docs as needed.
+
+If `wiki/` is not present in this checkout, run `scripts/link-private-wiki.sh`
+to mount a local private wiki clone.
 
 ## Non-negotiables
 

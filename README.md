@@ -62,6 +62,9 @@ This package publishes CCW as an APM package that installs the MCP server
 declaration into supported harnesses. The server itself is launched with
 `uvx ccw-mcp`, so consumers need both `apm` and `uv` available on `PATH`.
 
+For maintainers: this public repo can mount a private wiki clone locally via
+`scripts/link-private-wiki.sh`.
+
 **Development install from source:**
 
 ```bash
