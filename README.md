@@ -37,13 +37,13 @@ Requires Python 3.11 or newer.
 **Stable install from PyPI:**
 
 ```bash
-pip install ccw
+pip install ccw-mcp
 ```
 
 **Isolated CLI install (recommended — keeps ccw out of your project's environment):**
 
 ```bash
-pipx install ccw
+pipx install ccw-mcp
 ```
 
 **Zero-install MCP server launch via [uv](https://github.com/astral-sh/uv):**
@@ -222,7 +222,7 @@ Add this to your project's `.mcp.json` (or equivalent harness config).
 }
 ```
 
-**Option B — after `pip install ccw` or `pipx install ccw`:**
+**Option B — after `pip install ccw-mcp` or `pipx install ccw-mcp`:**
 
 ```json
 {
