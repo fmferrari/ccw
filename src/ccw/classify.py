@@ -16,6 +16,8 @@ _KEYWORDS: dict[str, tuple[str, ...]] = {
     "bugfix": ("fix", "bug", "error", "crash", "broken", "defect"),
     "refactor": ("refactor", "restructure", "clean", "improve", "simplify", "extract", "consolidate", "rename", "optimize", "modernize", "migrate"),
     "docs": (
+        "behavior",
+        "behaviour",
         "doc",
         "docs",
         "document",

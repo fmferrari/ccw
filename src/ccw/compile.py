@@ -212,8 +212,12 @@ _TASK_REFACTOR_HINT_TOKENS = frozenset({
 })
 
 _TASK_KEYWORD_ALIASES: dict[str, frozenset[str]] = {
+    "document": frozenset({"doc", "wiki", "spec", "guide"}),
+    "documentation": frozenset({"doc", "wiki", "spec", "guide"}),
     "retrieval": frozenset({"lookup", "planner", "query", "router", "search"}),
+    "search": frozenset({"query", "lookup", "retrieval"}),
     "ranking": frozenset({"order", "ordering", "rank", "score", "sort", "tie"}),
+    "rank": frozenset({"score", "order", "sort", "tie"}),
     "troubleshooting": frozenset({"debug", "diagnostic", "runbook"}),
 }
 
