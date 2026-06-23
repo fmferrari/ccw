@@ -122,7 +122,7 @@ pipx upgrade ccw-mcp
 `uvx`-launched clients:
 
 ```bash
-uvx --refresh ccw-mcp==0.1.10 --help
+uvx --refresh ccw-mcp==0.1.12 --help
 ```
 
 APM-based clients:
