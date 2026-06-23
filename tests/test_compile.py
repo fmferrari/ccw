@@ -994,8 +994,8 @@ class RankFilesTests(unittest.TestCase):
                     "docs/troubleshooting/retrieval-behavior.md",
                 },
             )
-            self.assertIn("AGENTS.md", agentic_paths)
-            self.assertNotIn("AGENTS.md", task_paths)
+            self.assertIn("AGENTS.md", task_paths)
+            self.assertNotIn("AGENTS.md", agentic_paths)
 
     def test_rank_file_lanes_prioritizes_architecture_and_specs_for_docs_tasks(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -1044,7 +1044,7 @@ class RankFilesTests(unittest.TestCase):
                     "wiki/user/ops/specs/phase-45-compiler-pipeline-spec.md",
                 },
             )
-            self.assertIn("AGENTS.md", [rf.file_path for rf in agentic_ranked])
+            self.assertIn("AGENTS.md", task_paths)
 
     def test_rank_file_lanes_docs_intent_beats_dense_test_and_source_overlap(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -1096,7 +1096,7 @@ class RankFilesTests(unittest.TestCase):
                     "wiki/user/ops/specs/retrieval-ranking-troubleshooting-spec.md",
                 },
             )
-            self.assertIn("AGENTS.md", [rf.file_path for rf in agentic_ranked])
+            self.assertIn("AGENTS.md", task_paths)
 
     def test_rank_file_lanes_refactor_penalizes_cross_language_noise(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

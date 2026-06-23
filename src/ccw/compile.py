@@ -348,8 +348,6 @@ _TASK_DOC_EXTENSIONS = _AGENTIC_CONTEXT_HINT_DOC_EXTENSIONS | frozenset({
 })
 
 _TASK_DOC_CANDIDATE_EXCLUDED_BASENAMES = frozenset({
-    "agents.md",
-    "context.md",
     "claude.md",
     "gemini.md",
     "codex.md",
@@ -734,7 +732,7 @@ def _score_task_role(file_path: str, tokens: list[str], task_mode: str | None) -
         if asks_for_tests:
             score += 3.0
         elif asks_for_refactor:
-            score -= 7.0
+            score -= 12.0
         elif asks_for_docs:
             score -= 5.0
         else:
