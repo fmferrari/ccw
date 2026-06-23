@@ -216,9 +216,12 @@ _TASK_TEST_PATH_SEGMENTS = frozenset({
     "test",
     "tests",
     "__tests__",
+    "e2e",
+})
+
+_TASK_TEST_CODE_HINT_PATH_SEGMENTS = frozenset({
     "spec",
     "specs",
-    "e2e",
 })
 
 _TASK_DOC_PATH_SEGMENTS = frozenset({
@@ -227,6 +230,28 @@ _TASK_DOC_PATH_SEGMENTS = frozenset({
     "wiki",
     "knowledge",
     "notes",
+    "architecture",
+    "design",
+    "adr",
+    "runbook",
+    "playbook",
+    "guide",
+    "guides",
+    "spec",
+    "specs",
+})
+
+_TASK_DOC_PRIORITY_PATH_SEGMENTS = frozenset({
+    "architecture",
+    "design",
+    "adr",
+    "runbook",
+    "playbook",
+    "handbook",
+    "guide",
+    "guides",
+    "spec",
+    "specs",
 })
 
 _TASK_CODE_EXTENSIONS = frozenset({
@@ -492,9 +517,15 @@ def _score_task_role(file_path: str, tokens: list[str]) -> float:
     parent_segments = segments[:-1]
     in_source_tree = any(segment in _TASK_SOURCE_PATH_SEGMENTS for segment in parent_segments)
     in_test_tree = any(segment in _TASK_TEST_PATH_SEGMENTS for segment in parent_segments)
+    in_test_code_hint_tree = any(
+        segment in _TASK_TEST_CODE_HINT_PATH_SEGMENTS
+        for segment in parent_segments
+    )
     in_doc_tree = any(segment in _TASK_DOC_PATH_SEGMENTS for segment in parent_segments)
+    is_doc_extension = extension in _TASK_DOC_EXTENSIONS
     looks_like_test_file = (
-        in_test_tree
+        (in_test_tree and not is_doc_extension)
+        or (in_test_code_hint_tree and extension in _TASK_CODE_EXTENSIONS)
         or basename.startswith("test_")
         or basename.endswith("_test.py")
         or basename.endswith(".test.ts")
@@ -504,7 +535,7 @@ def _score_task_role(file_path: str, tokens: list[str]) -> float:
         or basename.endswith(".spec.tsx")
         or basename.endswith(".spec.js")
     )
-    is_doc_file = extension in _TASK_DOC_EXTENSIONS or in_doc_tree
+    is_doc_file = is_doc_extension or in_doc_tree
     is_code_file = extension in _TASK_CODE_EXTENSIONS
 
     score = 0.0
@@ -566,7 +597,11 @@ def _documentation_intent_file_boost(file_path: str, docs_intent: bool) -> float
     if not docs_intent:
         return 0.0
     if _is_task_documentation_candidate(file_path):
-        return 8.0
+        parent_segments = _path_segments(_normalize_path(file_path))[:-1]
+        boost = 8.0
+        if any(segment in _TASK_DOC_PRIORITY_PATH_SEGMENTS for segment in parent_segments):
+            boost += 4.0
+        return boost
     return 0.0
 
 
