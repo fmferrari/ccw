@@ -95,6 +95,20 @@ class ClassifyCliTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(result.stdout.strip(), "refactor")
 
+    def test_classify_refactor_preserving_behavior_does_not_fall_into_docs(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            self.assertEqual(run_ccw("init", cwd=target).returncode, 0)
+
+            result = run_ccw(
+                "classify",
+                "Refactor retrieval ranking flow for clarity while preserving behavior",
+                cwd=target,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout.strip(), "refactor")
+
     def test_classify_docs_mode(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             target = Path(temp_dir)

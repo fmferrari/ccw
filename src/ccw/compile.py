@@ -130,6 +130,14 @@ _AGENTIC_ANCHOR_KNOWLEDGE_ROOT_SEGMENTS = frozenset({
     "playbook",
 })
 
+_PINNED_AGENTIC_CONTEXT_PATHS = frozenset({
+    "AGENTS.md",
+    "CONTEXT.md",
+    "wiki/AGENTS.md",
+    "wiki/user/index.md",
+    "wiki/user/log.md",
+})
+
 _TASK_IMPLEMENT_HINT_TOKENS = frozenset({
     "build",
     "feature",
@@ -584,6 +592,11 @@ def _is_agentic_anchor_path(path: str) -> bool:
     return False
 
 
+def _is_pinned_agentic_anchor_path(path: str) -> bool:
+    normalized = _normalize_path(path)
+    return normalized in _PINNED_AGENTIC_CONTEXT_PATHS
+
+
 def _agentic_context_score(path: str) -> float:
     normalized = _normalize_path(path)
     if _is_excluded_agentic_path(normalized):
@@ -611,6 +624,36 @@ def _agentic_context_score(path: str) -> float:
         score = max(score, 92.0)
 
     return score
+
+
+def _agentic_instruction_family(path: str) -> str:
+    normalized = _normalize_path(path).lower()
+    for prefix, family in (
+        (".cursor/", ".cursor"),
+        (".github/", ".github"),
+        (".opencode/", ".opencode"),
+        (".claude/", ".claude"),
+        (".codex/", ".codex"),
+        (".gemini/", ".gemini"),
+    ):
+        if normalized.startswith(prefix):
+            return family
+    return ""
+
+
+def _cap_repeated_agentic_instruction_families(
+    scored_items: list[tuple[float, str, str]],
+) -> list[tuple[float, str, str]]:
+    capped: list[tuple[float, str, str]] = []
+    seen_families: set[str] = set()
+    for item in scored_items:
+        family = _agentic_instruction_family(item[1])
+        if family and family in seen_families:
+            continue
+        if family:
+            seen_families.add(family)
+        capped.append(item)
+    return capped
 
 
 def _default_snippet_range(file_path: str, line_count: int) -> tuple[int, int]:
@@ -910,6 +953,7 @@ def rank_file_lanes(
         prioritize_in_task_lane = (
             (docs_intent or mode == "docs")
             and _is_task_documentation_candidate(normalized_path)
+            and not _is_pinned_agentic_anchor_path(normalized_path)
         )
         agentic_score = _agentic_context_score(file_path)
         if agentic_score > 0 and max_agentic_items > 0 and not prioritize_in_task_lane:
@@ -942,6 +986,7 @@ def rank_file_lanes(
     third_party_task_scored.sort(key=lambda x: (-x[0], x[1]))
     agentic_anchor_scored.sort(key=lambda x: (-x[0], x[1]))
     agentic_scored.sort(key=lambda x: (-x[0], x[1]))
+    agentic_scored = _cap_repeated_agentic_instruction_families(agentic_scored)
 
     # Anchors (repo contract/context files) should not be evicted by the small
     # default agentic slot heuristic. Grow the agentic lane to fit anchors, but

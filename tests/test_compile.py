@@ -5,6 +5,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from typing import cast
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
@@ -994,8 +995,8 @@ class RankFilesTests(unittest.TestCase):
                     "docs/troubleshooting/retrieval-behavior.md",
                 },
             )
-            self.assertIn("AGENTS.md", task_paths)
-            self.assertNotIn("AGENTS.md", agentic_paths)
+            self.assertIn("AGENTS.md", agentic_paths)
+            self.assertNotIn("AGENTS.md", task_paths[:2])
 
     def test_rank_file_lanes_prioritizes_architecture_and_specs_for_docs_tasks(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -1044,7 +1045,7 @@ class RankFilesTests(unittest.TestCase):
                     "wiki/user/ops/specs/phase-45-compiler-pipeline-spec.md",
                 },
             )
-            self.assertIn("AGENTS.md", task_paths)
+            self.assertIn("AGENTS.md", [rf.file_path for rf in agentic_ranked])
 
     def test_rank_file_lanes_docs_intent_beats_dense_test_and_source_overlap(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -1096,7 +1097,118 @@ class RankFilesTests(unittest.TestCase):
                     "wiki/user/ops/specs/retrieval-ranking-troubleshooting-spec.md",
                 },
             )
-            self.assertIn("AGENTS.md", task_paths)
+            self.assertIn("AGENTS.md", [rf.file_path for rf in agentic_ranked])
+
+    def test_rank_file_lanes_docs_mode_pins_core_agentic_anchors(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            state_dir = target / ".ccw"
+            state_dir.mkdir(parents=True, exist_ok=True)
+            (state_dir / "compiled").mkdir(parents=True, exist_ok=True)
+            (state_dir / "snapshots").mkdir(parents=True, exist_ok=True)
+            write_text(state_dir / "config.yaml", "config_version: 1\n")
+            database_path = state_dir / "index.sqlite"
+
+            with sqlite3.connect(database_path) as connection:
+                connection.executescript(
+                    """
+                    CREATE TABLE files (
+                        id INTEGER PRIMARY KEY,
+                        path TEXT NOT NULL UNIQUE,
+                        content_hash TEXT NOT NULL,
+                        size_bytes INTEGER NOT NULL,
+                        language TEXT NOT NULL,
+                        last_commit_at INTEGER
+                    );
+                    INSERT INTO files (path, content_hash, size_bytes, language, last_commit_at)
+                    VALUES
+                        ('wiki/user/ops/specs/index.md', 'a', 1, 'markdown', NULL),
+                        ('wiki/user/ops/specs/track-state-behavior-rules-spec.md', 'b', 1, 'markdown', NULL),
+                        ('AGENTS.md', 'c', 1, 'markdown', NULL),
+                        ('wiki/AGENTS.md', 'd', 1, 'markdown', NULL),
+                        ('CONTEXT.md', 'e', 1, 'markdown', NULL),
+                        ('wiki/user/index.md', 'f', 1, 'markdown', NULL),
+                        ('wiki/user/log.md', 'g', 1, 'markdown', NULL),
+                        ('.github/instructions/COPILOT_INSTRUCTIONS.instructions', 'h', 1, 'text', NULL),
+                        ('.opencode/instructions/COPILOT_INSTRUCTIONS.instructions', 'i', 1, 'text', NULL),
+                        ('.cursor/rules/development-plan-developer.mdc', 'j', 1, 'markdown', NULL),
+                        ('.cursor/rules/development-plan-manager.mdc', 'k', 1, 'markdown', NULL);
+                    """
+                )
+
+            task_ranked, agentic_ranked = rank_file_lanes(
+                target=target,
+                task_description="Document retrieval ranking behavior and troubleshooting notes",
+                database_path=database_path,
+                max_items=10,
+            )
+
+            task_paths = [rf.file_path for rf in task_ranked]
+            agentic_paths = [rf.file_path for rf in agentic_ranked]
+            self.assertEqual(
+                set(task_paths[:2]),
+                {
+                    "wiki/user/ops/specs/index.md",
+                    "wiki/user/ops/specs/track-state-behavior-rules-spec.md",
+                },
+            )
+            self.assertEqual(
+                agentic_paths[:5],
+                [
+                    "AGENTS.md",
+                    "wiki/AGENTS.md",
+                    "CONTEXT.md",
+                    "wiki/user/index.md",
+                    "wiki/user/log.md",
+                ],
+            )
+
+    def test_rank_file_lanes_caps_repeated_instruction_family_files(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            state_dir = target / ".ccw"
+            state_dir.mkdir(parents=True, exist_ok=True)
+            (state_dir / "compiled").mkdir(parents=True, exist_ok=True)
+            (state_dir / "snapshots").mkdir(parents=True, exist_ok=True)
+            write_text(state_dir / "config.yaml", "config_version: 1\n")
+            database_path = state_dir / "index.sqlite"
+
+            with sqlite3.connect(database_path) as connection:
+                connection.executescript(
+                    """
+                    CREATE TABLE files (
+                        id INTEGER PRIMARY KEY,
+                        path TEXT NOT NULL UNIQUE,
+                        content_hash TEXT NOT NULL,
+                        size_bytes INTEGER NOT NULL,
+                        language TEXT NOT NULL,
+                        last_commit_at INTEGER
+                    );
+                    INSERT INTO files (path, content_hash, size_bytes, language, last_commit_at)
+                    VALUES
+                        ('AGENTS.md', 'a', 1, 'markdown', NULL),
+                        ('.cursor/rules/one.mdc', 'b', 1, 'markdown', NULL),
+                        ('.cursor/rules/two.mdc', 'c', 1, 'markdown', NULL),
+                        ('.opencode/instructions/one.instructions', 'd', 1, 'text', NULL),
+                        ('.opencode/instructions/two.instructions', 'e', 1, 'text', NULL),
+                        ('.github/instructions/one.instructions', 'f', 1, 'text', NULL),
+                        ('.github/instructions/two.instructions', 'g', 1, 'text', NULL),
+                        ('src/retrieval/ranker.py', 'h', 1, 'python', NULL);
+                    """
+                )
+
+            _, agentic_ranked = rank_file_lanes(
+                target=target,
+                task_description="Implement retrieval ranking behavior",
+                database_path=database_path,
+                max_items=10,
+                max_agentic_items=10,
+            )
+
+            agentic_paths = [rf.file_path for rf in agentic_ranked]
+            self.assertEqual(len([p for p in agentic_paths if p.startswith('.cursor/')]), 1)
+            self.assertEqual(len([p for p in agentic_paths if p.startswith('.opencode/')]), 1)
+            self.assertEqual(len([p for p in agentic_paths if p.startswith('.github/')]), 1)
 
     def test_rank_file_lanes_refactor_penalizes_cross_language_noise(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -1697,12 +1809,14 @@ class CompileContextTests(unittest.TestCase):
             sections = {section.name: section for section in ctx.sections}
             self.assertIn("files", sections)
             self.assertIn("agentic context", sections)
+            first_file_item = cast(RankedFile, sections["files"].items[0])
+            first_agentic_item = cast(RankedFile, sections["agentic context"].items[0])
             self.assertEqual(
-                sections["files"].items[0].file_path,
+                first_file_item.file_path,
                 "src/auth/login.py",
             )
             self.assertEqual(
-                sections["agentic context"].items[0].file_path,
+                first_agentic_item.file_path,
                 "AGENTS.md",
             )
 
