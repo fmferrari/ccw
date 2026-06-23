@@ -102,6 +102,129 @@ _AGENTIC_CONTEXT_BASENAME_HINT_TOKENS = (
     "lexicon",
 )
 
+_AGENTIC_ANCHOR_BASENAMES = frozenset({
+    "agents.md",
+    "context.md",
+})
+
+_AGENTIC_ANCHOR_STRUCTURE_BASENAMES = frozenset({
+    "index.md",
+    "log.md",
+    "changelog.md",
+    "history.md",
+})
+
+_AGENTIC_ANCHOR_KNOWLEDGE_ROOT_SEGMENTS = frozenset({
+    "wiki",
+    "docs",
+    "doc",
+    "knowledge",
+    "notes",
+    "handbook",
+    "playbook",
+})
+
+_TASK_IMPLEMENT_HINT_TOKENS = frozenset({
+    "build",
+    "feature",
+    "fix",
+    "implement",
+    "improve",
+    "optimize",
+    "refactor",
+})
+
+_TASK_TEST_HINT_TOKENS = frozenset({
+    "assert",
+    "benchmark",
+    "coverage",
+    "e2e",
+    "integration",
+    "regression",
+    "spec",
+    "test",
+    "tests",
+    "unittest",
+    "validate",
+    "verification",
+})
+
+_TASK_DOC_HINT_TOKENS = frozenset({
+    "architecture",
+    "changelog",
+    "context",
+    "design",
+    "doc",
+    "docs",
+    "guide",
+    "readme",
+    "spec",
+    "specification",
+    "wiki",
+})
+
+_TASK_SOURCE_PATH_SEGMENTS = frozenset({
+    "app",
+    "backend",
+    "client",
+    "cmd",
+    "core",
+    "frontend",
+    "internal",
+    "lib",
+    "pkg",
+    "scripts",
+    "server",
+    "service",
+    "services",
+    "src",
+})
+
+_TASK_TEST_PATH_SEGMENTS = frozenset({
+    "test",
+    "tests",
+    "__tests__",
+    "spec",
+    "specs",
+    "e2e",
+})
+
+_TASK_DOC_PATH_SEGMENTS = frozenset({
+    "doc",
+    "docs",
+    "wiki",
+    "knowledge",
+    "notes",
+})
+
+_TASK_CODE_EXTENSIONS = frozenset({
+    "c",
+    "cc",
+    "cpp",
+    "cs",
+    "go",
+    "h",
+    "hpp",
+    "java",
+    "js",
+    "jsx",
+    "kt",
+    "m",
+    "php",
+    "py",
+    "rb",
+    "rs",
+    "scala",
+    "sh",
+    "swift",
+    "ts",
+    "tsx",
+})
+
+_TASK_DOC_EXTENSIONS = _AGENTIC_CONTEXT_HINT_DOC_EXTENSIONS | frozenset({
+    "mdown",
+})
+
 
 @dataclass(frozen=True)
 class Snippet:
@@ -175,12 +298,41 @@ def _normalize_path(path: str) -> str:
     return normalized
 
 
-def _is_excluded_agentic_path(path: str) -> bool:
-    if path.startswith(_AGENTIC_CONTEXT_EXCLUDED_PREFIXES):
+def _path_segments(path: str) -> list[str]:
+    return [segment.lower() for segment in _normalize_path(path).split("/") if segment]
+
+
+def _is_third_party_path(path: str) -> bool:
+    normalized = _normalize_path(path)
+    if normalized.startswith(_AGENTIC_CONTEXT_EXCLUDED_PREFIXES):
         return True
 
-    segments = [segment for segment in path.split("/")[:-1] if segment]
+    segments = _path_segments(normalized)[:-1]
     return any(segment in _AGENTIC_CONTEXT_EXCLUDED_SEGMENTS for segment in segments)
+
+
+def _is_excluded_agentic_path(path: str) -> bool:
+    return _is_third_party_path(path)
+
+
+def _is_agentic_anchor_path(path: str) -> bool:
+    normalized = _normalize_path(path)
+    segments = _path_segments(normalized)
+    if not segments:
+        return False
+
+    basename = segments[-1]
+    if basename in _AGENTIC_ANCHOR_BASENAMES:
+        return True
+
+    if basename in _AGENTIC_ANCHOR_STRUCTURE_BASENAMES:
+        parent_segments = segments[:-1]
+        return any(
+            segment in _AGENTIC_ANCHOR_KNOWLEDGE_ROOT_SEGMENTS
+            for segment in parent_segments
+        )
+
+    return False
 
 
 def _agentic_context_score(path: str) -> float:
@@ -206,12 +358,8 @@ def _agentic_context_score(path: str) -> float:
     if normalized.endswith("/AGENTS.md"):
         score = max(score, 85.0)
 
-    if normalized.startswith("wiki/user/ops/specs/"):
-        score = max(score, 35.0)
-    elif normalized.startswith("wiki/user/ops/plans/"):
-        score = max(score, 35.0)
-    elif normalized.startswith("wiki/user/architecture/"):
-        score = max(score, 30.0)
+    if _is_agentic_anchor_path(normalized):
+        score = max(score, 92.0)
 
     return score
 
@@ -232,6 +380,7 @@ def _score_task_file(
     now_ts: int,
 ) -> float:
     score = float(_base_score(file_path, tokens))
+    score += _score_task_role(file_path=file_path, tokens=tokens)
     for symbol_name in file_symbols:
         for token in tokens:
             if token in symbol_name.lower():
@@ -244,6 +393,59 @@ def _score_task_file(
             score += 5.0
         elif age <= 30 * 86400:
             score += 2.0
+
+    return score
+
+
+def _score_task_role(file_path: str, tokens: list[str]) -> float:
+    normalized = _normalize_path(file_path)
+    segments = _path_segments(normalized)
+    if not segments:
+        return 0.0
+
+    basename = segments[-1]
+    stem, dot, extension = basename.rpartition(".")
+    extension = extension.lower() if dot else ""
+    token_set = set(tokens)
+
+    asks_for_tests = bool(token_set & _TASK_TEST_HINT_TOKENS)
+    asks_for_docs = bool(token_set & _TASK_DOC_HINT_TOKENS)
+    asks_for_implementation = bool(token_set & _TASK_IMPLEMENT_HINT_TOKENS)
+    if not asks_for_tests and not asks_for_docs and not asks_for_implementation:
+        asks_for_implementation = True
+
+    parent_segments = segments[:-1]
+    in_source_tree = any(segment in _TASK_SOURCE_PATH_SEGMENTS for segment in parent_segments)
+    in_test_tree = any(segment in _TASK_TEST_PATH_SEGMENTS for segment in parent_segments)
+    in_doc_tree = any(segment in _TASK_DOC_PATH_SEGMENTS for segment in parent_segments)
+    looks_like_test_file = (
+        in_test_tree
+        or basename.startswith("test_")
+        or basename.endswith("_test.py")
+        or basename.endswith(".test.ts")
+        or basename.endswith(".test.tsx")
+        or basename.endswith(".test.js")
+        or basename.endswith(".spec.ts")
+        or basename.endswith(".spec.tsx")
+        or basename.endswith(".spec.js")
+    )
+    is_doc_file = extension in _TASK_DOC_EXTENSIONS or in_doc_tree
+    is_code_file = extension in _TASK_CODE_EXTENSIONS
+
+    score = 0.0
+    if in_source_tree:
+        score += 3.0 if asks_for_implementation else 1.5
+    if is_code_file:
+        score += 2.0 if asks_for_implementation else 1.0
+    if looks_like_test_file:
+        score += 3.0 if asks_for_tests else -2.0
+    if is_doc_file:
+        score += 2.5 if asks_for_docs else -1.5
+    if in_doc_tree and asks_for_implementation:
+        score -= 1.0
+
+    if stem and stem in {"index", "log", "changelog"} and asks_for_docs:
+        score += 1.5
 
     return score
 
@@ -316,11 +518,17 @@ def rank_file_lanes(
     now_ts = int(time.time())
 
     task_scored: list[tuple[float, str, str]] = []
+    third_party_task_scored: list[tuple[float, str, str]] = []
+    agentic_anchor_scored: list[tuple[float, str, str]] = []
     agentic_scored: list[tuple[float, str, str]] = []
     for file_path, language, last_commit_at in rows:
+        normalized_path = _normalize_path(file_path)
         agentic_score = _agentic_context_score(file_path)
         if agentic_score > 0 and max_agentic_items > 0:
-            agentic_scored.append((agentic_score, file_path, language))
+            if _is_agentic_anchor_path(normalized_path):
+                agentic_anchor_scored.append((agentic_score, file_path, language))
+            else:
+                agentic_scored.append((agentic_score, file_path, language))
             continue
 
         if max_task_items == 0:
@@ -333,24 +541,32 @@ def rank_file_lanes(
             last_commit_at=last_commit_at,
             now_ts=now_ts,
         )
-        task_scored.append((score, file_path, language))
+        if _is_third_party_path(normalized_path):
+            third_party_task_scored.append((score, file_path, language))
+        else:
+            task_scored.append((score, file_path, language))
 
     task_scored.sort(key=lambda x: (-x[0], x[1]))
+    third_party_task_scored.sort(key=lambda x: (-x[0], x[1]))
+    agentic_anchor_scored.sort(key=lambda x: (-x[0], x[1]))
     agentic_scored.sort(key=lambda x: (-x[0], x[1]))
+
+    ordered_task_scored = [*task_scored, *third_party_task_scored]
+    ordered_agentic_scored = [*agentic_anchor_scored, *agentic_scored]
 
     ranked_task_files = [
         RankedFile(file_path=fp, score=sc, language=lang)
-        for sc, fp, lang in task_scored[:max_task_items]
+        for sc, fp, lang in ordered_task_scored[:max_task_items]
     ]
     ranked_agentic_files = [
         RankedFile(file_path=fp, score=sc, language=lang)
-        for sc, fp, lang in agentic_scored[:max_agentic_items]
+        for sc, fp, lang in ordered_agentic_scored[:max_agentic_items]
     ]
 
     if uses_default_agentic_limit:
         remaining_slots = max_items - len(ranked_task_files) - len(ranked_agentic_files)
         if remaining_slots > 0:
-            overflow_task = task_scored[len(ranked_task_files) :]
+            overflow_task = ordered_task_scored[len(ranked_task_files) :]
             extra_task = overflow_task[:remaining_slots]
             ranked_task_files.extend(
                 RankedFile(file_path=fp, score=sc, language=lang)
@@ -359,7 +575,7 @@ def rank_file_lanes(
             remaining_slots -= len(extra_task)
 
         if remaining_slots > 0:
-            overflow_agentic = agentic_scored[len(ranked_agentic_files) :]
+            overflow_agentic = ordered_agentic_scored[len(ranked_agentic_files) :]
             extra_agentic = overflow_agentic[:remaining_slots]
             ranked_agentic_files.extend(
                 RankedFile(file_path=fp, score=sc, language=lang)

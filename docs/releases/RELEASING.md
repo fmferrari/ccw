@@ -126,5 +126,7 @@ Document upgrade commands for users in release notes:
 - `pipx upgrade ccw-mcp`
 - `uvx --refresh ccw-mcp==X.Y.Z --help`
 - restart harness/editor process after upgrade
+- update any downstream audit prompts that pin `ccw-mcp==X.Y.Z` (for example
+  `docs/prompts/wikiagent-lane-regression.md`)
 
 Without process restart, MCP clients may keep running an older server binary.

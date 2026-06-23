@@ -122,7 +122,7 @@ pipx upgrade ccw-mcp
 `uvx`-launched clients:
 
 ```bash
-uvx --refresh ccw-mcp==0.1.3 --help
+uvx --refresh ccw-mcp==0.1.4 --help
 ```
 
 APM-based clients:
@@ -466,6 +466,15 @@ See `CONTRIBUTING.md` for contribution flow and documentation expectations.
 
 ## Public release notes
 
+- `0.1.4` — generic lane-quality hardening update:
+  - removes repository-specific path boosts in file ranking heuristics
+  - prioritizes generic anchor/context files in agentic context lane
+  - keeps third-party/vendor files as task-lane fallback only
+  - adds task-intent-aware weighting so implementation tasks prefer source
+    files, while explicit test/docs tasks prioritize their corresponding files
+  - adds a reusable wikiagent regression prompt with explicit client-update
+    instructions after a CCW release
+
 - `0.1.3` — lane-aware compilation update:
   - separates ranked task evidence (`## Files`) from project/harness context
     (`## Agentic Context`)
@@ -474,7 +483,9 @@ See `CONTRIBUTING.md` for contribution flow and documentation expectations.
   - keeps vendored/tooling directories from crowding context lanes
   - keeps wiki log snippets tail-biased to prioritize recent project history
 
-Detailed notes: `docs/releases/0.1.3.md`
+Detailed notes:
+- `docs/releases/0.1.4.md`
+- `docs/releases/0.1.3.md`
 
 Release process for maintainers: `docs/releases/RELEASING.md`
 

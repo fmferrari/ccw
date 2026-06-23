@@ -15,7 +15,7 @@ created_at: <timestamp>
 
 ## Files
 
-- `src/auth/login.py` (score: 5.0)
+- `src/auth/login.py` (score: 10.0)
   ```python
   lines 1-2:
   def login_handler(user):

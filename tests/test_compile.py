@@ -586,6 +586,152 @@ class RankFilesTests(unittest.TestCase):
             self.assertIn("AGENTS.md", agentic_paths)
             self.assertNotIn("src/vendor/ccw/AGENTS.md", agentic_paths)
 
+    def test_rank_file_lanes_prioritizes_agentic_anchor_files(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            state_dir = target / ".ccw"
+            state_dir.mkdir(parents=True, exist_ok=True)
+            (state_dir / "compiled").mkdir(parents=True, exist_ok=True)
+            (state_dir / "snapshots").mkdir(parents=True, exist_ok=True)
+            write_text(state_dir / "config.yaml", "config_version: 1\n")
+            database_path = state_dir / "index.sqlite"
+
+            with sqlite3.connect(database_path) as connection:
+                connection.executescript(
+                    """
+                    CREATE TABLE files (
+                        id INTEGER PRIMARY KEY,
+                        path TEXT NOT NULL UNIQUE,
+                        content_hash TEXT NOT NULL,
+                        size_bytes INTEGER NOT NULL,
+                        language TEXT NOT NULL,
+                        last_commit_at INTEGER
+                    );
+                    INSERT INTO files (path, content_hash, size_bytes, language, last_commit_at)
+                    VALUES
+                        ('src/auth/login.py', 'a', 1, 'python', NULL),
+                        ('AGENTS.md', 'b', 1, 'markdown', NULL),
+                        ('docs/index.md', 'c', 1, 'markdown', NULL),
+                        ('docs/log.md', 'd', 1, 'markdown', NULL),
+                        ('.cursor/rules/review.mdc', 'e', 1, 'markdown', NULL);
+                    """
+                )
+
+            _, agentic_ranked = rank_file_lanes(
+                target=target,
+                task_description="Implement login behavior",
+                database_path=database_path,
+                max_items=6,
+                max_agentic_items=3,
+            )
+
+            agentic_paths = [rf.file_path for rf in agentic_ranked]
+            self.assertEqual(agentic_paths[0], "AGENTS.md")
+            self.assertIn("docs/index.md", agentic_paths)
+            self.assertIn("docs/log.md", agentic_paths)
+            self.assertNotIn(".cursor/rules/review.mdc", agentic_paths)
+
+    def test_rank_file_lanes_keeps_third_party_task_files_as_fallback_only(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            state_dir = target / ".ccw"
+            state_dir.mkdir(parents=True, exist_ok=True)
+            (state_dir / "compiled").mkdir(parents=True, exist_ok=True)
+            (state_dir / "snapshots").mkdir(parents=True, exist_ok=True)
+            write_text(state_dir / "config.yaml", "config_version: 1\n")
+            database_path = state_dir / "index.sqlite"
+
+            with sqlite3.connect(database_path) as connection:
+                connection.executescript(
+                    """
+                    CREATE TABLE files (
+                        id INTEGER PRIMARY KEY,
+                        path TEXT NOT NULL UNIQUE,
+                        content_hash TEXT NOT NULL,
+                        size_bytes INTEGER NOT NULL,
+                        language TEXT NOT NULL,
+                        last_commit_at INTEGER
+                    );
+                    INSERT INTO files (path, content_hash, size_bytes, language, last_commit_at)
+                    VALUES
+                        ('src/auth/login.py', 'a', 1, 'python', NULL),
+                        ('src/auth/refresh.py', 'b', 1, 'python', NULL),
+                        ('vendor/auth/login.py', 'c', 1, 'python', NULL);
+                    """
+                )
+
+            task_ranked_small, _ = rank_file_lanes(
+                target=target,
+                task_description="Implement login refresh behavior",
+                database_path=database_path,
+                max_items=2,
+                max_agentic_items=0,
+            )
+            small_paths = [rf.file_path for rf in task_ranked_small]
+            self.assertEqual(
+                small_paths,
+                ["src/auth/login.py", "src/auth/refresh.py"],
+            )
+
+            task_ranked_large, _ = rank_file_lanes(
+                target=target,
+                task_description="Implement login refresh behavior",
+                database_path=database_path,
+                max_items=3,
+                max_agentic_items=0,
+            )
+            large_paths = [rf.file_path for rf in task_ranked_large]
+            self.assertEqual(large_paths[-1], "vendor/auth/login.py")
+
+    def test_rank_file_lanes_prioritizes_source_for_implementation_tasks(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            state_dir = target / ".ccw"
+            state_dir.mkdir(parents=True, exist_ok=True)
+            (state_dir / "compiled").mkdir(parents=True, exist_ok=True)
+            (state_dir / "snapshots").mkdir(parents=True, exist_ok=True)
+            write_text(state_dir / "config.yaml", "config_version: 1\n")
+            database_path = state_dir / "index.sqlite"
+
+            with sqlite3.connect(database_path) as connection:
+                connection.executescript(
+                    """
+                    CREATE TABLE files (
+                        id INTEGER PRIMARY KEY,
+                        path TEXT NOT NULL UNIQUE,
+                        content_hash TEXT NOT NULL,
+                        size_bytes INTEGER NOT NULL,
+                        language TEXT NOT NULL,
+                        last_commit_at INTEGER
+                    );
+                    INSERT INTO files (path, content_hash, size_bytes, language, last_commit_at)
+                    VALUES
+                        ('src/retrieval/ranker.py', 'a', 1, 'python', NULL),
+                        ('tests/test_ranker.py', 'b', 1, 'python', NULL),
+                        ('docs/ranker-design.md', 'c', 1, 'markdown', NULL);
+                    """
+                )
+
+            impl_ranked, _ = rank_file_lanes(
+                target=target,
+                task_description="Implement deterministic ranker tie break behavior",
+                database_path=database_path,
+                max_items=3,
+                max_agentic_items=0,
+            )
+            impl_paths = [rf.file_path for rf in impl_ranked]
+            self.assertEqual(impl_paths[0], "src/retrieval/ranker.py")
+
+            test_ranked, _ = rank_file_lanes(
+                target=target,
+                task_description="Add regression tests for deterministic ranker tie break",
+                database_path=database_path,
+                max_items=3,
+                max_agentic_items=0,
+            )
+            test_paths = [rf.file_path for rf in test_ranked]
+            self.assertEqual(test_paths[0], "tests/test_ranker.py")
+
 
 class ExtractSnippetsTests(unittest.TestCase):
     def test_extract_snippets_returns_anchored_lines(self) -> None:
