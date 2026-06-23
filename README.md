@@ -122,7 +122,7 @@ pipx upgrade ccw-mcp
 `uvx`-launched clients:
 
 ```bash
-uvx --refresh ccw-mcp==0.1.4 --help
+uvx --refresh ccw-mcp==0.1.5 --help
 ```
 
 APM-based clients:
@@ -466,6 +466,15 @@ See `CONTRIBUTING.md` for contribution flow and documentation expectations.
 
 ## Public release notes
 
+- `0.1.5` — lane-ranking correctness fixes (follow-up to the 0.1.4 audit):
+  - keeps every agentic anchor (e.g. `AGENTS.md`, `CONTEXT.md`, wiki
+    `index.md`/`log.md`) in the agentic lane under tighter default item limits,
+    without starving the task lane on small budgets
+  - broadens documentation-intent detection so tasks phrased as
+    "document …"/"documentation" prioritize docs/wiki/spec files
+  - stops snippet extraction from overshooting the lane budget once it is
+    exhausted (later files keep their reference but drop the snippet body)
+
 - `0.1.4` — generic lane-quality hardening update:
   - removes repository-specific path boosts in file ranking heuristics
   - prioritizes generic anchor/context files in agentic context lane
@@ -484,6 +493,7 @@ See `CONTRIBUTING.md` for contribution flow and documentation expectations.
   - keeps wiki log snippets tail-biased to prioritize recent project history
 
 Detailed notes:
+- `docs/releases/0.1.5.md`
 - `docs/releases/0.1.4.md`
 - `docs/releases/0.1.3.md`
 

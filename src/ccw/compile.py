@@ -152,14 +152,24 @@ _TASK_TEST_HINT_TOKENS = frozenset({
 _TASK_DOC_HINT_TOKENS = frozenset({
     "architecture",
     "changelog",
+    "comment",
+    "comments",
     "context",
     "design",
     "doc",
     "docs",
+    "document",
+    "documentation",
+    "explain",
     "guide",
+    "manual",
+    "note",
+    "notes",
     "readme",
     "spec",
     "specification",
+    "troubleshooting",
+    "tutorial",
     "wiki",
 })
 
@@ -551,6 +561,16 @@ def rank_file_lanes(
     agentic_anchor_scored.sort(key=lambda x: (-x[0], x[1]))
     agentic_scored.sort(key=lambda x: (-x[0], x[1]))
 
+    # Anchors (repo contract/context files) should not be evicted by the small
+    # default agentic slot heuristic. Grow the agentic lane to fit anchors, but
+    # only into spare capacity so the task lane is never starved on tight budgets.
+    if uses_default_agentic_limit:
+        anchor_count = len(agentic_anchor_scored)
+        anchor_cap = min(anchor_count, max(max_agentic_items, max_items // 2))
+        if anchor_cap > max_agentic_items:
+            max_agentic_items = anchor_cap
+            max_task_items = max(0, max_items - max_agentic_items)
+
     ordered_task_scored = [*task_scored, *third_party_task_scored]
     ordered_agentic_scored = [*agentic_anchor_scored, *agentic_scored]
 
@@ -663,7 +683,13 @@ def extract_snippets(
         snippet_text = "".join(snippet_lines)
         estimated = _estimate_tokens(snippet_text)
 
-        if estimated > remaining_budget and remaining_budget > 0:
+        if remaining_budget <= 0:
+            # Budget exhausted: keep the file reference but drop the snippet body
+            # so later files never push the artifact over its allocation.
+            result.append(rf)
+            continue
+
+        if estimated > remaining_budget:
             # Truncate: fit what we can
             target_chars = remaining_budget * 4
             snippet_text = snippet_text[:target_chars]

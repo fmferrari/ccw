@@ -45,11 +45,22 @@ Goal: run an end-to-end regression audit of CCW lane quality (no feature impleme
 Before running final verification, ensure wikiagent is using the latest CCW release:
 
 - `pip install -U ccw-mcp` OR `pipx upgrade ccw-mcp`
-- for uvx launchers: `uvx --refresh ccw-mcp==0.1.4 --help`
+- for uvx launchers: `uvx --refresh ccw-mcp==0.1.5 --help`
 - if using APM: `apm install fmferrari/ccw --target copilot`
 - restart the editor/harness process so the MCP server reloads
 
-If this upgrade step is skipped, mark audit confidence as low and explain why.
+Then CONFIRM the running server actually loaded the upgrade (a vendored copy or
+cached launcher can silently keep an old binary):
+
+```bash
+python -c "import ccw, inspect; print(ccw.__version__, inspect.getfile(ccw))"
+```
+
+The version must be `0.1.5` and `getfile(ccw)` must point at the upgraded
+install (not a vendored `apm_modules/.../ccw` path). If either check fails,
+repoint the MCP launch or re-vendor, then restart before auditing.
+
+If this upgrade/verification step is skipped, mark audit confidence as low and explain why.
 
 ## Optional checks
 

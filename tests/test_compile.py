@@ -708,7 +708,7 @@ class RankFilesTests(unittest.TestCase):
                     VALUES
                         ('src/retrieval/ranker.py', 'a', 1, 'python', NULL),
                         ('tests/test_ranker.py', 'b', 1, 'python', NULL),
-                        ('docs/ranker-design.md', 'c', 1, 'markdown', NULL);
+                        ('docs/retrieval-ranking.md', 'c', 1, 'markdown', NULL);
                     """
                 )
 
@@ -731,6 +731,66 @@ class RankFilesTests(unittest.TestCase):
             )
             test_paths = [rf.file_path for rf in test_ranked]
             self.assertEqual(test_paths[0], "tests/test_ranker.py")
+
+            doc_ranked, _ = rank_file_lanes(
+                target=target,
+                task_description="Document the retrieval ranking behavior",
+                database_path=database_path,
+                max_items=3,
+                max_agentic_items=0,
+            )
+            doc_paths = [rf.file_path for rf in doc_ranked]
+            self.assertEqual(doc_paths[0], "docs/retrieval-ranking.md")
+
+    def test_rank_file_lanes_keeps_all_anchors_under_default_limit(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            state_dir = target / ".ccw"
+            state_dir.mkdir(parents=True, exist_ok=True)
+            (state_dir / "compiled").mkdir(parents=True, exist_ok=True)
+            (state_dir / "snapshots").mkdir(parents=True, exist_ok=True)
+            write_text(state_dir / "config.yaml", "config_version: 1\n")
+            database_path = state_dir / "index.sqlite"
+
+            with sqlite3.connect(database_path) as connection:
+                connection.executescript(
+                    """
+                    CREATE TABLE files (
+                        id INTEGER PRIMARY KEY,
+                        path TEXT NOT NULL UNIQUE,
+                        content_hash TEXT NOT NULL,
+                        size_bytes INTEGER NOT NULL,
+                        language TEXT NOT NULL,
+                        last_commit_at INTEGER
+                    );
+                    INSERT INTO files (path, content_hash, size_bytes, language, last_commit_at)
+                    VALUES
+                        ('AGENTS.md', 'a', 1, 'markdown', NULL),
+                        ('CONTEXT.md', 'b', 1, 'markdown', NULL),
+                        ('wiki/AGENTS.md', 'c', 1, 'markdown', NULL),
+                        ('wiki/user/index.md', 'd', 1, 'markdown', NULL),
+                        ('wiki/user/log.md', 'e', 1, 'markdown', NULL),
+                        ('src/app.py', 'f', 1, 'python', NULL);
+                    """
+                )
+
+            # Implementation recipe uses files.max_items=20, whose default agentic
+            # slot heuristic only yields 4 slots. All 5 anchors must still survive.
+            _, agentic_ranked = rank_file_lanes(
+                target=target,
+                task_description="Add a deterministic retrieval tie break",
+                database_path=database_path,
+                max_items=20,
+            )
+            agentic_paths = {rf.file_path for rf in agentic_ranked}
+            for anchor in (
+                "AGENTS.md",
+                "CONTEXT.md",
+                "wiki/AGENTS.md",
+                "wiki/user/index.md",
+                "wiki/user/log.md",
+            ):
+                self.assertIn(anchor, agentic_paths)
 
 
 class ExtractSnippetsTests(unittest.TestCase):
@@ -799,6 +859,53 @@ class ExtractSnippetsTests(unittest.TestCase):
             self.assertEqual(snippet.start_line, 1)
             self.assertEqual(snippet.end_line, 5)
             self.assertIn("login_handler", snippet.text)
+
+    def test_extract_snippets_never_exceeds_budget_across_files(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            state_dir = target / ".ccw"
+            state_dir.mkdir(parents=True, exist_ok=True)
+            write_text(state_dir / "config.yaml", "config_version: 1\n")
+            database_path = state_dir / "index.sqlite"
+
+            with sqlite3.connect(database_path) as connection:
+                connection.executescript(
+                    """
+                    CREATE TABLE symbols (
+                        id INTEGER PRIMARY KEY,
+                        file_path TEXT NOT NULL,
+                        name TEXT NOT NULL,
+                        kind TEXT NOT NULL,
+                        line INTEGER NOT NULL,
+                        end_line INTEGER NOT NULL,
+                        export_name TEXT
+                    );
+                    """
+                )
+
+            body = "".join(f"line{i}\n" for i in range(1, 41))
+            ranked: list[RankedFile] = []
+            for idx in range(3):
+                rel = f"src/file{idx}.py"
+                write_text(target / rel, body)
+                ranked.append(RankedFile(file_path=rel, score=10.0 - idx, language="python"))
+
+            budget = 20
+            with_snippets = extract_snippets(
+                target=target,
+                ranked_files=ranked,
+                task_description="line content",
+                database_path=database_path,
+                budget=budget,
+            )
+
+            self.assertEqual(len(with_snippets), 3)
+            used = sum(
+                len(snippet.text) // 4
+                for item in with_snippets
+                for snippet in item.snippets
+            )
+            self.assertLessEqual(used, budget)
 
     def test_extract_snippets_no_symbol_fallback_to_first_lines(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
