@@ -143,7 +143,7 @@ future compilations include the run outcome.
 `ccw compile` runs a named pass pipeline:
 
 1. **ResolveTask** — classifies the task (`bugfix`, `implementation`, `review`, `refactor`) and selects the matching recipe with per-section budgets
-2. **RankFiles** — scores indexed files by keyword overlap, fuzzy prefix match, symbol-name match, and git freshness; caps at the recipe file limit
+2. **RankFiles** — scores indexed files by keyword overlap, fuzzy prefix match, symbol-name match, and git freshness; separates task evidence from agentic/harness context files so instruction docs do not crowd out task files
 3. **ExtractSnippets** — pulls line-anchored code snippets up to each section's token allocation
 4. **LoadMemory** — loads explicit facts, episodes, and constraints from the append-only store
 5. **Assemble** — composes ranked files, snippets, memory, and constraints into a `CompiledContext`, then renders to bounded markdown
@@ -421,7 +421,7 @@ management.
 python -m unittest
 ```
 
-146 tests covering CLI surfaces, compiler passes, pipeline composition, MCP
+160 tests covering CLI surfaces, compiler passes, pipeline composition, MCP
 tools, session bundle, Conductor scaffold, and the end-to-end value integration.
 
 See `CONTRIBUTING.md` for contribution flow and documentation expectations.

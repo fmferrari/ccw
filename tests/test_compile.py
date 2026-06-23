@@ -16,6 +16,7 @@ from ccw.compile import (
     Snippet,
     compile_context,
     extract_snippets,
+    rank_file_lanes,
     rank_files,
     render_compiled_context,
 )
@@ -310,6 +311,281 @@ class RankFilesTests(unittest.TestCase):
             self.assertEqual(ranked[0].file_path, "src/auth/login.py")
             self.assertGreater(ranked[0].score, ranked[1].score)
 
+    def test_rank_files_preserves_task_files_when_agentic_context_exists(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            state_dir = target / ".ccw"
+            state_dir.mkdir(parents=True, exist_ok=True)
+            (state_dir / "compiled").mkdir(parents=True, exist_ok=True)
+            (state_dir / "snapshots").mkdir(parents=True, exist_ok=True)
+            write_text(state_dir / "config.yaml", "config_version: 1\n")
+            database_path = state_dir / "index.sqlite"
+
+            with sqlite3.connect(database_path) as connection:
+                connection.executescript(
+                    """
+                    CREATE TABLE files (
+                        id INTEGER PRIMARY KEY,
+                        path TEXT NOT NULL UNIQUE,
+                        content_hash TEXT NOT NULL,
+                        size_bytes INTEGER NOT NULL,
+                        language TEXT NOT NULL,
+                        last_commit_at INTEGER
+                    );
+                    INSERT INTO files (path, content_hash, size_bytes, language, last_commit_at)
+                    VALUES
+                        ('src/auth/login.py', 'a', 1, 'python', NULL),
+                        ('src/auth/session.py', 'aa', 1, 'python', NULL),
+                        ('src/auth/refresh.py', 'ab', 1, 'python', NULL),
+                        ('src/auth/token.py', 'ac', 1, 'python', NULL),
+                        ('AGENTS.md', 'b', 1, 'markdown', NULL),
+                        ('CONTEXT.md', 'c', 1, 'markdown', NULL),
+                        ('wiki/AGENTS.md', 'd', 1, 'markdown', NULL),
+                        ('wiki/user/index.md', 'e', 1, 'markdown', NULL),
+                        ('wiki/user/log.md', 'f', 1, 'markdown', NULL);
+                    """
+                )
+
+            ranked = rank_files(
+                target=target,
+                task_description="Implement login refresh behavior",
+                database_path=database_path,
+                max_items=5,
+            )
+
+            ranked_paths = [rf.file_path for rf in ranked]
+            agentic_paths = {
+                "AGENTS.md",
+                "CONTEXT.md",
+                "wiki/AGENTS.md",
+                "wiki/user/index.md",
+                "wiki/user/log.md",
+            }
+            self.assertIn("AGENTS.md", ranked_paths)
+            self.assertIn("src/auth/login.py", ranked_paths)
+            self.assertLessEqual(
+                len([p for p in ranked_paths if p in agentic_paths]),
+                2,
+            )
+
+    def test_rank_file_lanes_prioritize_nested_agentic_context_files(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            state_dir = target / ".ccw"
+            state_dir.mkdir(parents=True, exist_ok=True)
+            (state_dir / "compiled").mkdir(parents=True, exist_ok=True)
+            (state_dir / "snapshots").mkdir(parents=True, exist_ok=True)
+            write_text(state_dir / "config.yaml", "config_version: 1\n")
+            database_path = state_dir / "index.sqlite"
+
+            with sqlite3.connect(database_path) as connection:
+                connection.executescript(
+                    """
+                    CREATE TABLE files (
+                        id INTEGER PRIMARY KEY,
+                        path TEXT NOT NULL UNIQUE,
+                        content_hash TEXT NOT NULL,
+                        size_bytes INTEGER NOT NULL,
+                        language TEXT NOT NULL,
+                        last_commit_at INTEGER
+                    );
+                    INSERT INTO files (path, content_hash, size_bytes, language, last_commit_at)
+                    VALUES
+                        ('src/auth/login.py', 'a', 1, 'python', NULL),
+                        ('src/auth/refresh.py', 'aa', 1, 'python', NULL),
+                        ('src/auth/AGENTS.md', 'b', 1, 'markdown', NULL),
+                        ('.opencode/instructions/AGENTIC_PLAN_WORKFLOW.instructions', 'c', 1, 'text', NULL),
+                        ('.cursor/rules/review.mdc', 'd', 1, 'markdown', NULL);
+                    """
+                )
+
+            task_ranked, agentic_ranked = rank_file_lanes(
+                target=target,
+                task_description="Review auth implementation workflow",
+                database_path=database_path,
+                max_items=5,
+                max_agentic_items=3,
+            )
+
+            task_paths = [rf.file_path for rf in task_ranked]
+            agentic_paths = [rf.file_path for rf in agentic_ranked]
+            self.assertIn("src/auth/login.py", task_paths)
+            self.assertEqual(agentic_paths[0], "src/auth/AGENTS.md")
+            self.assertIn(".opencode/instructions/AGENTIC_PLAN_WORKFLOW.instructions", agentic_paths)
+            self.assertIn(".cursor/rules/review.mdc", agentic_paths)
+
+    def test_rank_file_lanes_detects_multiple_harness_context_sources(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            state_dir = target / ".ccw"
+            state_dir.mkdir(parents=True, exist_ok=True)
+            (state_dir / "compiled").mkdir(parents=True, exist_ok=True)
+            (state_dir / "snapshots").mkdir(parents=True, exist_ok=True)
+            write_text(state_dir / "config.yaml", "config_version: 1\n")
+            database_path = state_dir / "index.sqlite"
+
+            with sqlite3.connect(database_path) as connection:
+                connection.executescript(
+                    """
+                    CREATE TABLE files (
+                        id INTEGER PRIMARY KEY,
+                        path TEXT NOT NULL UNIQUE,
+                        content_hash TEXT NOT NULL,
+                        size_bytes INTEGER NOT NULL,
+                        language TEXT NOT NULL,
+                        last_commit_at INTEGER
+                    );
+                    INSERT INTO files (path, content_hash, size_bytes, language, last_commit_at)
+                    VALUES
+                        ('src/auth/login.py', 'a', 1, 'python', NULL),
+                        ('.github/copilot-instructions.md', 'b', 1, 'markdown', NULL),
+                        ('.cursor/instructions/repo-rules.md', 'c', 1, 'markdown', NULL),
+                        ('.codex/policies/safe.md', 'd', 1, 'markdown', NULL),
+                        ('.claude/agents/main.md', 'e', 1, 'markdown', NULL);
+                    """
+                )
+
+            _, agentic_ranked = rank_file_lanes(
+                target=target,
+                task_description="Implement login behavior",
+                database_path=database_path,
+                max_items=6,
+                max_agentic_items=4,
+            )
+
+            agentic_paths = [rf.file_path for rf in agentic_ranked]
+            self.assertIn(".github/copilot-instructions.md", agentic_paths)
+            self.assertIn(".cursor/instructions/repo-rules.md", agentic_paths)
+            self.assertIn(".codex/policies/safe.md", agentic_paths)
+            self.assertIn(".claude/agents/main.md", agentic_paths)
+
+    def test_rank_file_lanes_detects_language_and_terminology_hints(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            state_dir = target / ".ccw"
+            state_dir.mkdir(parents=True, exist_ok=True)
+            (state_dir / "compiled").mkdir(parents=True, exist_ok=True)
+            (state_dir / "snapshots").mkdir(parents=True, exist_ok=True)
+            write_text(state_dir / "config.yaml", "config_version: 1\n")
+            database_path = state_dir / "index.sqlite"
+
+            with sqlite3.connect(database_path) as connection:
+                connection.executescript(
+                    """
+                    CREATE TABLE files (
+                        id INTEGER PRIMARY KEY,
+                        path TEXT NOT NULL UNIQUE,
+                        content_hash TEXT NOT NULL,
+                        size_bytes INTEGER NOT NULL,
+                        language TEXT NOT NULL,
+                        last_commit_at INTEGER
+                    );
+                    INSERT INTO files (path, content_hash, size_bytes, language, last_commit_at)
+                    VALUES
+                        ('src/auth/login.py', 'a', 1, 'python', NULL),
+                        ('docs/project-language.md', 'b', 1, 'markdown', NULL),
+                        ('docs/domain-terminology.md', 'c', 1, 'markdown', NULL);
+                    """
+                )
+
+            _, agentic_ranked = rank_file_lanes(
+                target=target,
+                task_description="Implement login behavior",
+                database_path=database_path,
+                max_items=5,
+                max_agentic_items=2,
+            )
+
+            agentic_paths = [rf.file_path for rf in agentic_ranked]
+            self.assertIn("docs/project-language.md", agentic_paths)
+            self.assertIn("docs/domain-terminology.md", agentic_paths)
+
+    def test_rank_file_lanes_does_not_treat_code_language_names_as_agentic(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            state_dir = target / ".ccw"
+            state_dir.mkdir(parents=True, exist_ok=True)
+            (state_dir / "compiled").mkdir(parents=True, exist_ok=True)
+            (state_dir / "snapshots").mkdir(parents=True, exist_ok=True)
+            write_text(state_dir / "config.yaml", "config_version: 1\n")
+            database_path = state_dir / "index.sqlite"
+
+            with sqlite3.connect(database_path) as connection:
+                connection.executescript(
+                    """
+                    CREATE TABLE files (
+                        id INTEGER PRIMARY KEY,
+                        path TEXT NOT NULL UNIQUE,
+                        content_hash TEXT NOT NULL,
+                        size_bytes INTEGER NOT NULL,
+                        language TEXT NOT NULL,
+                        last_commit_at INTEGER
+                    );
+                    INSERT INTO files (path, content_hash, size_bytes, language, last_commit_at)
+                    VALUES
+                        ('src/language_server.py', 'a', 1, 'python', NULL),
+                        ('docs/project-language.md', 'b', 1, 'markdown', NULL),
+                        ('src/auth/login.py', 'c', 1, 'python', NULL);
+                    """
+                )
+
+            task_ranked, agentic_ranked = rank_file_lanes(
+                target=target,
+                task_description="Fix language server login path",
+                database_path=database_path,
+                max_items=4,
+                max_agentic_items=2,
+            )
+
+            task_paths = [rf.file_path for rf in task_ranked]
+            agentic_paths = [rf.file_path for rf in agentic_ranked]
+            self.assertIn("src/language_server.py", task_paths)
+            self.assertIn("docs/project-language.md", agentic_paths)
+            self.assertNotIn("src/language_server.py", agentic_paths)
+
+    def test_rank_file_lanes_do_not_boost_vendored_agentic_context_files(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            state_dir = target / ".ccw"
+            state_dir.mkdir(parents=True, exist_ok=True)
+            (state_dir / "compiled").mkdir(parents=True, exist_ok=True)
+            (state_dir / "snapshots").mkdir(parents=True, exist_ok=True)
+            write_text(state_dir / "config.yaml", "config_version: 1\n")
+            database_path = state_dir / "index.sqlite"
+
+            with sqlite3.connect(database_path) as connection:
+                connection.executescript(
+                    """
+                    CREATE TABLE files (
+                        id INTEGER PRIMARY KEY,
+                        path TEXT NOT NULL UNIQUE,
+                        content_hash TEXT NOT NULL,
+                        size_bytes INTEGER NOT NULL,
+                        language TEXT NOT NULL,
+                        last_commit_at INTEGER
+                    );
+                    INSERT INTO files (path, content_hash, size_bytes, language, last_commit_at)
+                    VALUES
+                        ('AGENTS.md', 'a', 1, 'markdown', NULL),
+                        ('src/vendor/ccw/AGENTS.md', 'b', 1, 'markdown', NULL),
+                        ('src/auth/login.py', 'c', 1, 'python', NULL);
+                    """
+                )
+
+            task_ranked, agentic_ranked = rank_file_lanes(
+                target=target,
+                task_description="Review login implementation",
+                database_path=database_path,
+                max_items=4,
+                max_agentic_items=2,
+            )
+
+            task_paths = [rf.file_path for rf in task_ranked]
+            agentic_paths = [rf.file_path for rf in agentic_ranked]
+            self.assertIn("src/auth/login.py", task_paths)
+            self.assertIn("AGENTS.md", agentic_paths)
+            self.assertNotIn("src/vendor/ccw/AGENTS.md", agentic_paths)
+
 
 class ExtractSnippetsTests(unittest.TestCase):
     def test_extract_snippets_returns_anchored_lines(self) -> None:
@@ -429,6 +705,47 @@ class ExtractSnippetsTests(unittest.TestCase):
             # No symbol match: first 40 lines
             self.assertEqual(snippet.start_line, 1)
             self.assertEqual(snippet.end_line, 40)
+
+    def test_extract_snippets_uses_recent_tail_for_wiki_log(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            state_dir = target / ".ccw"
+            state_dir.mkdir(parents=True, exist_ok=True)
+            (state_dir / "compiled").mkdir(parents=True, exist_ok=True)
+            (state_dir / "snapshots").mkdir(parents=True, exist_ok=True)
+            write_text(state_dir / "config.yaml", "config_version: 1\n")
+            database_path = state_dir / "index.sqlite"
+
+            log_lines = [f"- old entry {i}\n" for i in range(1, 61)]
+            write_text(target / "wiki" / "user" / "log.md", "".join(log_lines))
+
+            with sqlite3.connect(database_path) as connection:
+                connection.executescript(
+                    """
+                    CREATE TABLE files (
+                        id INTEGER PRIMARY KEY,
+                        path TEXT NOT NULL UNIQUE,
+                        content_hash TEXT NOT NULL,
+                        size_bytes INTEGER NOT NULL,
+                        language TEXT NOT NULL,
+                        last_commit_at INTEGER
+                    );
+                    """
+                )
+
+            with_snippets = extract_snippets(
+                target=target,
+                ranked_files=[RankedFile("wiki/user/log.md", 1.0, "markdown")],
+                task_description="review recent work",
+                database_path=database_path,
+                budget=500,
+            )
+
+            snippet = with_snippets[0].snippets[0]
+            self.assertEqual(snippet.start_line, 21)
+            self.assertEqual(snippet.end_line, 60)
+            self.assertNotIn("old entry 1", snippet.text)
+            self.assertIn("old entry 60", snippet.text)
 
     def test_extract_snippets_respects_budget(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -580,6 +897,102 @@ class CompileContextTests(unittest.TestCase):
             self.assertIn("facts", section_names)
             self.assertGreater(len(ctx.facts), 0)
             self.assertGreater(len(ctx.episodes), 0)
+
+    def test_compile_context_includes_agentic_context_lane(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            state_dir = target / ".ccw"
+            snapshots_dir = state_dir / "snapshots"
+            snapshots_dir.mkdir(parents=True, exist_ok=True)
+            (state_dir / "compiled").mkdir(parents=True, exist_ok=True)
+            write_text(state_dir / "config.yaml", "config_version: 1\n")
+            database_path = state_dir / "index.sqlite"
+
+            write_text(target / "src" / "auth" / "login.py", "def login_handler(user):\n    pass\n")
+            write_text(target / "AGENTS.md", "# repo instructions\n")
+
+            with sqlite3.connect(database_path) as connection:
+                connection.executescript(
+                    """
+                    CREATE TABLE files (
+                        id INTEGER PRIMARY KEY,
+                        path TEXT NOT NULL UNIQUE,
+                        content_hash TEXT NOT NULL,
+                        size_bytes INTEGER NOT NULL,
+                        language TEXT NOT NULL,
+                        last_commit_at INTEGER
+                    );
+                    CREATE TABLE symbols (
+                        id INTEGER PRIMARY KEY,
+                        file_path TEXT NOT NULL,
+                        name TEXT NOT NULL,
+                        kind TEXT NOT NULL,
+                        line INTEGER NOT NULL,
+                        end_line INTEGER NOT NULL,
+                        export_name TEXT
+                    );
+                    CREATE TABLE edges (
+                        id INTEGER PRIMARY KEY,
+                        source_path TEXT NOT NULL,
+                        kind TEXT NOT NULL,
+                        target_path TEXT NOT NULL,
+                        detail TEXT,
+                        line INTEGER
+                    );
+                    CREATE TABLE artifacts (
+                        id INTEGER PRIMARY KEY,
+                        file_path TEXT NOT NULL,
+                        kind TEXT NOT NULL,
+                        title TEXT NOT NULL,
+                        search_text TEXT NOT NULL
+                    );
+                    CREATE TABLE facts (
+                        id INTEGER PRIMARY KEY,
+                        kind TEXT,
+                        text TEXT,
+                        created_at TEXT
+                    );
+                    CREATE TABLE episodes (
+                        id INTEGER PRIMARY KEY,
+                        summary TEXT,
+                        touched_files TEXT,
+                        created_at TEXT
+                    );
+                    CREATE TABLE classifications (
+                        id INTEGER PRIMARY KEY,
+                        text TEXT,
+                        mode TEXT,
+                        created_at TEXT
+                    );
+                    INSERT INTO files (path, content_hash, size_bytes, language, last_commit_at)
+                    VALUES
+                        ('src/auth/login.py', 'a', 30, 'python', NULL),
+                        ('AGENTS.md', 'b', 25, 'markdown', NULL);
+                    INSERT INTO symbols (file_path, name, kind, line, end_line)
+                    VALUES ('src/auth/login.py', 'login_handler', 'function', 1, 2);
+                    """
+                )
+
+            recipe = get_recipe("bugfix")
+            ctx = compile_context(
+                target=target,
+                task_description="Fix login handler bug",
+                mode="bugfix",
+                database_path=database_path,
+                recipe=recipe,
+            )
+
+            sections = {section.name: section for section in ctx.sections}
+            self.assertIn("files", sections)
+            self.assertIn("agentic context", sections)
+            self.assertEqual(
+                sections["files"].items[0].file_path,
+                "src/auth/login.py",
+            )
+            self.assertEqual(
+                sections["agentic context"].items[0].file_path,
+                "AGENTS.md",
+            )
 
 
 class RenderCompiledContextTests(unittest.TestCase):

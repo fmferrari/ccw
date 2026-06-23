@@ -13,7 +13,8 @@ from ccw.compile import (
     _load_episodes,
     _load_facts,
     extract_snippets,
-    rank_files,
+    rank_file_lanes,
+    split_file_lane_budget,
 )
 from ccw.classify import classify as classify_text
 from ccw.recipe import Recipe, allocate_budget, get_recipe
@@ -28,6 +29,10 @@ class CompilationIR:
     section_budgets: dict[str, int] = field(default_factory=dict)
     index_hash: str = ""
     ranked_files: list[RankedFile] = field(default_factory=list)
+    task_files: list[RankedFile] = field(default_factory=list)
+    agentic_context_files: list[RankedFile] = field(default_factory=list)
+    task_files_budget: int = 0
+    agentic_context_budget: int = 0
     facts: list[str] = field(default_factory=list)
     episodes: list[str] = field(default_factory=list)
     constraints: list[str] = field(default_factory=list)
@@ -69,25 +74,40 @@ class RankFilesPass:
             files_section = ir.recipe.sections.get("files")
             if files_section is not None:
                 max_items = files_section.max_items
-        ir.ranked_files = rank_files(
+        task_files, agentic_context_files = rank_file_lanes(
             target=target,
             task_description=ir.task_description,
             database_path=database_path,
             max_items=max_items,
         )
+        ir.task_files = task_files
+        ir.agentic_context_files = agentic_context_files
+        ir.ranked_files = [*task_files, *agentic_context_files]
         return ir
 
 
 class ExtractSnippetsPass:
     def run(self, ir: CompilationIR, target: Path, database_path: Path) -> CompilationIR:
-        snippet_budget = ir.section_budgets.get("files", 0)
-        ir.ranked_files = extract_snippets(
+        file_budget = ir.section_budgets.get("files", 0)
+        task_budget, agentic_budget = split_file_lane_budget(file_budget)
+        ir.task_files_budget = task_budget
+        ir.agentic_context_budget = agentic_budget
+
+        ir.task_files = extract_snippets(
             target=target,
-            ranked_files=ir.ranked_files,
+            ranked_files=ir.task_files,
             task_description=ir.task_description,
             database_path=database_path,
-            budget=snippet_budget,
+            budget=task_budget,
         )
+        ir.agentic_context_files = extract_snippets(
+            target=target,
+            ranked_files=ir.agentic_context_files,
+            task_description=ir.task_description,
+            database_path=database_path,
+            budget=agentic_budget,
+        )
+        ir.ranked_files = [*ir.task_files, *ir.agentic_context_files]
         return ir
 
 
@@ -124,13 +144,33 @@ def build_pipeline() -> CompilationPipeline:
 def ir_to_compiled_context(ir: CompilationIR) -> CompiledContext:
     sections: list[ContextSection] = []
 
-    if ir.ranked_files:
+    if ir.task_files:
+        used_budget = sum(
+            len(snippet.text) // 4
+            for item in ir.task_files
+            for snippet in item.snippets
+        )
         sections.append(
             ContextSection(
                 name="files",
-                items=tuple(ir.ranked_files),
-                allocated_budget=ir.section_budgets.get("files", 0),
-                used_budget=ir.section_budgets.get("files", 0),
+                items=tuple(ir.task_files),
+                allocated_budget=ir.task_files_budget,
+                used_budget=used_budget,
+            )
+        )
+
+    if ir.agentic_context_files:
+        used_budget = sum(
+            len(snippet.text) // 4
+            for item in ir.agentic_context_files
+            for snippet in item.snippets
+        )
+        sections.append(
+            ContextSection(
+                name="agentic context",
+                items=tuple(ir.agentic_context_files),
+                allocated_budget=ir.agentic_context_budget,
+                used_budget=used_budget,
             )
         )
 

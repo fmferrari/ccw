@@ -14,6 +14,94 @@ _STOPWORDS = frozenset({
     "and", "or", "at", "by", "with", "from", "as", "be", "this", "that",
 })
 
+_AGENTIC_CONTEXT_EXACT_SCORES = {
+    "AGENTS.md": 120.0,
+    "CONTEXT.md": 110.0,
+    "CLAUDE.md": 95.0,
+    "GEMINI.md": 95.0,
+    "CODEX.md": 95.0,
+    "COPILOT_INSTRUCTIONS.md": 95.0,
+    "wiki/AGENTS.md": 120.0,
+    "wiki/user/index.md": 105.0,
+    "wiki/user/log.md": 105.0,
+    "wiki/index.md": 85.0,
+    "wiki/log.md": 85.0,
+    ".github/copilot-instructions.md": 95.0,
+    ".github/copilot-instructions.instructions.md": 95.0,
+    ".mcp.json": 45.0,
+    "mcp.json": 45.0,
+    "opencode.json": 55.0,
+    "apm.yml": 45.0,
+}
+
+_AGENTIC_CONTEXT_BASENAME_SCORES = {
+    "AGENTS.md": 100.0,
+    "UBIQUITOUS_LANGUAGE.md": 70.0,
+    "CLAUDE.md": 90.0,
+    "GEMINI.md": 90.0,
+    "CODEX.md": 90.0,
+    "COPILOT_INSTRUCTIONS.md": 90.0,
+    "COPILOT_INSTRUCTIONS.instructions": 90.0,
+    "copilot-instructions.md": 90.0,
+    "copilot-instructions.instructions.md": 90.0,
+    ".cursorrules": 80.0,
+    ".mcp.json": 45.0,
+    "mcp.json": 45.0,
+    "mcp.yml": 45.0,
+    "mcp.yaml": 45.0,
+    "opencode.json": 55.0,
+    "apm.yml": 45.0,
+    "apm.yaml": 45.0,
+}
+
+_AGENTIC_CONTEXT_PATH_SEGMENTS = (
+    ".cursor/rules/",
+    ".cursor/instructions/",
+    ".opencode/instructions/",
+    ".github/instructions/",
+    ".github/prompts/",
+    ".github/copilot-instructions",
+    ".claude/",
+    ".gemini/",
+    ".codex/",
+)
+
+_AGENTIC_CONTEXT_EXCLUDED_PREFIXES = (
+    "apm_modules/",
+    "vendor/",
+    "third_party/",
+    "external/",
+    "site-packages/",
+    "node_modules/",
+)
+
+_AGENTIC_CONTEXT_EXCLUDED_SEGMENTS = frozenset({
+    "apm_modules",
+    "vendor",
+    "third_party",
+    "external",
+    "site-packages",
+    "node_modules",
+})
+
+_AGENTIC_CONTEXT_HINT_DOC_EXTENSIONS = frozenset({
+    "md",
+    "mdx",
+    "txt",
+    "rst",
+    "adoc",
+})
+
+_AGENTIC_CONTEXT_BASENAME_HINT_TOKENS = (
+    "ubiquitous-language",
+    "ubiquitous_language",
+    "language",
+    "vocabulary",
+    "glossary",
+    "terminology",
+    "lexicon",
+)
+
 
 @dataclass(frozen=True)
 class Snippet:
@@ -80,64 +168,220 @@ def _base_score(path: str, tokens: list[str]) -> int:
     return score
 
 
+def _normalize_path(path: str) -> str:
+    normalized = path.replace("\\", "/")
+    while normalized.startswith("./"):
+        normalized = normalized[2:]
+    return normalized
+
+
+def _is_excluded_agentic_path(path: str) -> bool:
+    if path.startswith(_AGENTIC_CONTEXT_EXCLUDED_PREFIXES):
+        return True
+
+    segments = [segment for segment in path.split("/")[:-1] if segment]
+    return any(segment in _AGENTIC_CONTEXT_EXCLUDED_SEGMENTS for segment in segments)
+
+
+def _agentic_context_score(path: str) -> float:
+    normalized = _normalize_path(path)
+    if _is_excluded_agentic_path(normalized):
+        return 0.0
+
+    basename = normalized.rsplit("/", 1)[-1]
+    lowered_basename = basename.lower()
+    score = _AGENTIC_CONTEXT_EXACT_SCORES.get(normalized, 0.0)
+    score = max(score, _AGENTIC_CONTEXT_BASENAME_SCORES.get(basename, 0.0))
+
+    stem, dot, extension = lowered_basename.rpartition(".")
+    if dot and extension in _AGENTIC_CONTEXT_HINT_DOC_EXTENSIONS:
+        if any(token in stem for token in _AGENTIC_CONTEXT_BASENAME_HINT_TOKENS):
+            score = max(score, 65.0)
+
+    for segment in _AGENTIC_CONTEXT_PATH_SEGMENTS:
+        if segment in normalized:
+            score = max(score, 75.0)
+            break
+
+    if normalized.endswith("/AGENTS.md"):
+        score = max(score, 85.0)
+
+    if normalized.startswith("wiki/user/ops/specs/"):
+        score = max(score, 35.0)
+    elif normalized.startswith("wiki/user/ops/plans/"):
+        score = max(score, 35.0)
+    elif normalized.startswith("wiki/user/architecture/"):
+        score = max(score, 30.0)
+
+    return score
+
+
+def _default_snippet_range(file_path: str, line_count: int) -> tuple[int, int]:
+    normalized = _normalize_path(file_path)
+    if normalized in {"wiki/log.md", "wiki/user/log.md"} or normalized.endswith("/wiki/user/log.md"):
+        start = max(1, line_count - 39)
+        return (start, line_count)
+    return (1, min(40, line_count))
+
+
+def _score_task_file(
+    file_path: str,
+    tokens: list[str],
+    file_symbols: list[str],
+    last_commit_at: int | None,
+    now_ts: int,
+) -> float:
+    score = float(_base_score(file_path, tokens))
+    for symbol_name in file_symbols:
+        for token in tokens:
+            if token in symbol_name.lower():
+                score += 2.0
+                break
+
+    if last_commit_at is not None:
+        age = now_ts - last_commit_at
+        if age <= 7 * 86400:
+            score += 5.0
+        elif age <= 30 * 86400:
+            score += 2.0
+
+    return score
+
+
+def _agentic_lane_item_limit(max_items: int) -> int:
+    if max_items <= 3:
+        return 0
+    return max(1, min(6, max_items // 5))
+
+
+def split_file_lane_budget(total_file_budget: int) -> tuple[int, int]:
+    if total_file_budget <= 0:
+        return (0, 0)
+
+    if total_file_budget < 400:
+        agentic_budget = max(40, total_file_budget // 5)
+    else:
+        agentic_budget = max(120, total_file_budget // 5)
+
+    agentic_budget = min(800, agentic_budget)
+    if agentic_budget >= total_file_budget:
+        agentic_budget = max(0, total_file_budget - 1)
+
+    task_budget = total_file_budget - agentic_budget
+    return (task_budget, agentic_budget)
+
+
+def rank_file_lanes(
+    target: Path,
+    task_description: str,
+    database_path: Path,
+    max_items: int = 20,
+    max_agentic_items: int | None = None,
+) -> tuple[list[RankedFile], list[RankedFile]]:
+    tokens = _tokenize(task_description)
+    if not tokens or max_items <= 0:
+        return ([], [])
+
+    try:
+        connection = sqlite3.connect(database_path)
+        try:
+            rows = connection.execute(
+                "SELECT path, language, last_commit_at FROM files ORDER BY path"
+            ).fetchall()
+        finally:
+            connection.close()
+    except sqlite3.Error:
+        return ([], [])
+
+    symbol_names: dict[str, list[str]] = {}
+    try:
+        connection = sqlite3.connect(database_path)
+        try:
+            symbol_rows = connection.execute(
+                "SELECT DISTINCT file_path, name FROM symbols"
+            ).fetchall()
+            for file_path, name in symbol_rows:
+                symbol_names.setdefault(file_path, []).append(name)
+        finally:
+            connection.close()
+    except sqlite3.Error:
+        pass
+
+    uses_default_agentic_limit = max_agentic_items is None
+    if uses_default_agentic_limit:
+        max_agentic_items = _agentic_lane_item_limit(max_items)
+    max_agentic_items = max(0, min(max_agentic_items, max_items))
+    max_task_items = max(0, max_items - max_agentic_items)
+
+    now_ts = int(time.time())
+
+    task_scored: list[tuple[float, str, str]] = []
+    agentic_scored: list[tuple[float, str, str]] = []
+    for file_path, language, last_commit_at in rows:
+        agentic_score = _agentic_context_score(file_path)
+        if agentic_score > 0 and max_agentic_items > 0:
+            agentic_scored.append((agentic_score, file_path, language))
+            continue
+
+        if max_task_items == 0:
+            continue
+
+        score = _score_task_file(
+            file_path=file_path,
+            tokens=tokens,
+            file_symbols=symbol_names.get(file_path, []),
+            last_commit_at=last_commit_at,
+            now_ts=now_ts,
+        )
+        task_scored.append((score, file_path, language))
+
+    task_scored.sort(key=lambda x: (-x[0], x[1]))
+    agentic_scored.sort(key=lambda x: (-x[0], x[1]))
+
+    ranked_task_files = [
+        RankedFile(file_path=fp, score=sc, language=lang)
+        for sc, fp, lang in task_scored[:max_task_items]
+    ]
+    ranked_agentic_files = [
+        RankedFile(file_path=fp, score=sc, language=lang)
+        for sc, fp, lang in agentic_scored[:max_agentic_items]
+    ]
+
+    if uses_default_agentic_limit:
+        remaining_slots = max_items - len(ranked_task_files) - len(ranked_agentic_files)
+        if remaining_slots > 0:
+            overflow_task = task_scored[len(ranked_task_files) :]
+            extra_task = overflow_task[:remaining_slots]
+            ranked_task_files.extend(
+                RankedFile(file_path=fp, score=sc, language=lang)
+                for sc, fp, lang in extra_task
+            )
+            remaining_slots -= len(extra_task)
+
+        if remaining_slots > 0:
+            overflow_agentic = agentic_scored[len(ranked_agentic_files) :]
+            extra_agentic = overflow_agentic[:remaining_slots]
+            ranked_agentic_files.extend(
+                RankedFile(file_path=fp, score=sc, language=lang)
+                for sc, fp, lang in extra_agentic
+            )
+    return (ranked_task_files, ranked_agentic_files)
+
+
 def rank_files(
     target: Path,
     task_description: str,
     database_path: Path,
     max_items: int = 20,
 ) -> list[RankedFile]:
-    tokens = _tokenize(task_description)
-    if not tokens:
-        return []
+    task_files, agentic_files = rank_file_lanes(
+        target=target,
+        task_description=task_description,
+        database_path=database_path,
+        max_items=max_items,
+    )
 
-    try:
-        with sqlite3.connect(database_path) as connection:
-            rows = connection.execute(
-                "SELECT path, language, last_commit_at FROM files ORDER BY path"
-            ).fetchall()
-    except sqlite3.Error:
-        return []
-
-    symbol_names: dict[str, list[str]] = {}
-    try:
-        with sqlite3.connect(database_path) as connection:
-            symbol_rows = connection.execute(
-                "SELECT DISTINCT file_path, name FROM symbols"
-            ).fetchall()
-            for file_path, name in symbol_rows:
-                symbol_names.setdefault(file_path, []).append(name)
-    except sqlite3.Error:
-        pass
-
-    now_ts = int(time.time())
-    seven_days = 7 * 86400
-    thirty_days = 30 * 86400
-
-    scored: list[tuple[float, str, str]] = []
-    for file_path, language, last_commit_at in rows:
-        score = float(_base_score(file_path, tokens))
-
-        file_symbols = symbol_names.get(file_path, [])
-        for symbol_name in file_symbols:
-            for token in tokens:
-                if token in symbol_name.lower():
-                    score += 2.0
-
-        if last_commit_at is not None:
-            age = now_ts - last_commit_at
-            if age <= seven_days:
-                score += 5.0
-            elif age <= thirty_days:
-                score += 2.0
-
-        scored.append((score, file_path, language))
-
-    scored.sort(key=lambda x: (-x[0], x[1]))
-
-    return [
-        RankedFile(file_path=fp, score=sc, language=lang)
-        for sc, fp, lang in scored[:max_items]
-    ]
+    return [*task_files, *agentic_files][:max_items]
 
 
 def _load_symbol_ranges(
@@ -196,7 +440,7 @@ def extract_snippets(
                     break
 
         if best_range is None:
-            best_range = (1, min(40, len(lines)))
+            best_range = _default_snippet_range(rf.file_path, len(lines))
 
         start_line, end_line = best_range
         snippet_lines = lines[start_line - 1 : end_line]
