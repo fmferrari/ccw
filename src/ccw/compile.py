@@ -195,6 +195,22 @@ _TASK_DOC_INTENT_SECONDARY_TOKENS = frozenset({
     "notes",
 })
 
+_TASK_REFACTOR_HINT_TOKENS = frozenset({
+    "clarify",
+    "cleanup",
+    "preserve",
+    "preserving",
+    "refactor",
+    "restructure",
+    "simplify",
+})
+
+_TASK_KEYWORD_ALIASES: dict[str, frozenset[str]] = {
+    "retrieval": frozenset({"lookup", "query", "search"}),
+    "ranking": frozenset({"order", "ordering", "rank", "score"}),
+    "troubleshooting": frozenset({"debug", "diagnostic", "runbook"}),
+}
+
 _TASK_SOURCE_PATH_SEGMENTS = frozenset({
     "app",
     "backend",
@@ -375,7 +391,11 @@ def _path_tokens(path: str) -> list[str]:
 
 
 def _fuzzy_prefix_match(token: str, component: str) -> bool:
-    return component.startswith(token)
+    if component.startswith(token):
+        return True
+    if "_" in component and token in component.split("_"):
+        return True
+    return False
 
 
 def _base_score(path: str, tokens: list[str]) -> int:
@@ -387,6 +407,22 @@ def _base_score(path: str, tokens: list[str]) -> int:
                 score += 3
                 break
     return score
+
+
+def _expand_task_terms(tokens: list[str]) -> list[str]:
+    expanded: list[str] = []
+    seen: set[str] = set()
+    for token in tokens:
+        if token in seen:
+            continue
+        seen.add(token)
+        expanded.append(token)
+        for alias in _TASK_KEYWORD_ALIASES.get(token, ()):
+            if alias in seen:
+                continue
+            seen.add(alias)
+            expanded.append(alias)
+    return expanded
 
 
 def _normalize_path(path: str) -> str:
@@ -478,12 +514,14 @@ def _score_task_file(
     now_ts: int,
     docs_intent: bool,
 ) -> float:
-    score = float(_base_score(file_path, tokens))
+    search_terms = _expand_task_terms(tokens)
+    score = float(_base_score(file_path, search_terms))
     score += _score_task_role(file_path=file_path, tokens=tokens)
     score += _documentation_intent_file_boost(file_path=file_path, docs_intent=docs_intent)
     for symbol_name in file_symbols:
-        for token in tokens:
-            if token in symbol_name.lower():
+        symbol_lower = symbol_name.lower()
+        for token in search_terms:
+            if token in symbol_lower:
                 score += 2.0
                 break
 
@@ -511,6 +549,7 @@ def _score_task_role(file_path: str, tokens: list[str]) -> float:
     asks_for_tests = bool(token_set & _TASK_TEST_HINT_TOKENS)
     asks_for_docs = bool(token_set & _TASK_DOC_HINT_TOKENS)
     asks_for_implementation = bool(token_set & _TASK_IMPLEMENT_HINT_TOKENS)
+    asks_for_refactor = bool(token_set & _TASK_REFACTOR_HINT_TOKENS)
     if not asks_for_tests and not asks_for_docs and not asks_for_implementation:
         asks_for_implementation = True
 
@@ -540,11 +579,22 @@ def _score_task_role(file_path: str, tokens: list[str]) -> float:
 
     score = 0.0
     if in_source_tree:
-        score += 3.0 if asks_for_implementation else 1.5
+        if asks_for_refactor:
+            score += 4.0
+        else:
+            score += 3.0 if asks_for_implementation else 1.5
     if is_code_file:
-        score += 2.0 if asks_for_implementation else 1.0
+        if asks_for_refactor:
+            score += 2.5
+        else:
+            score += 2.0 if asks_for_implementation else 1.0
     if looks_like_test_file:
-        score += 3.0 if asks_for_tests else -2.0
+        if asks_for_tests:
+            score += 3.0
+        elif asks_for_refactor:
+            score -= 4.0
+        else:
+            score -= 2.0
     if is_doc_file:
         score += 2.5 if asks_for_docs else -1.5
     if in_doc_tree and asks_for_implementation:
@@ -598,9 +648,9 @@ def _documentation_intent_file_boost(file_path: str, docs_intent: bool) -> float
         return 0.0
     if _is_task_documentation_candidate(file_path):
         parent_segments = _path_segments(_normalize_path(file_path))[:-1]
-        boost = 8.0
+        boost = 10.0
         if any(segment in _TASK_DOC_PRIORITY_PATH_SEGMENTS for segment in parent_segments):
-            boost += 4.0
+            boost += 6.0
         return boost
     return 0.0
 

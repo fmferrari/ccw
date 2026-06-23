@@ -742,6 +742,96 @@ class RankFilesTests(unittest.TestCase):
             doc_paths = [rf.file_path for rf in doc_ranked]
             self.assertEqual(doc_paths[0], "docs/retrieval-ranking.md")
 
+    def test_rank_file_lanes_refactor_tasks_penalize_tests(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            state_dir = target / ".ccw"
+            state_dir.mkdir(parents=True, exist_ok=True)
+            (state_dir / "compiled").mkdir(parents=True, exist_ok=True)
+            (state_dir / "snapshots").mkdir(parents=True, exist_ok=True)
+            write_text(state_dir / "config.yaml", "config_version: 1\n")
+            database_path = state_dir / "index.sqlite"
+
+            with sqlite3.connect(database_path) as connection:
+                connection.executescript(
+                    """
+                    CREATE TABLE files (
+                        id INTEGER PRIMARY KEY,
+                        path TEXT NOT NULL UNIQUE,
+                        content_hash TEXT NOT NULL,
+                        size_bytes INTEGER NOT NULL,
+                        language TEXT NOT NULL,
+                        last_commit_at INTEGER
+                    );
+                    INSERT INTO files (path, content_hash, size_bytes, language, last_commit_at)
+                    VALUES
+                        ('src/retrieval/ranker.py', 'a', 1, 'python', NULL),
+                        ('tests/retrieval_ranking_flow_behavior_test.py', 'b', 1, 'python', NULL);
+                    """
+                )
+
+            ranked, _ = rank_file_lanes(
+                target=target,
+                task_description="Refactor retrieval ranking flow for clarity while preserving behavior",
+                database_path=database_path,
+                max_items=2,
+                max_agentic_items=0,
+            )
+            ranked_paths = [rf.file_path for rf in ranked]
+            self.assertEqual(ranked_paths[0], "src/retrieval/ranker.py")
+
+    def test_rank_file_lanes_uses_alias_terms_for_retrieval_ranking(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            state_dir = target / ".ccw"
+            state_dir.mkdir(parents=True, exist_ok=True)
+            (state_dir / "compiled").mkdir(parents=True, exist_ok=True)
+            (state_dir / "snapshots").mkdir(parents=True, exist_ok=True)
+            write_text(state_dir / "config.yaml", "config_version: 1\n")
+            database_path = state_dir / "index.sqlite"
+
+            with sqlite3.connect(database_path) as connection:
+                connection.executescript(
+                    """
+                    CREATE TABLE files (
+                        id INTEGER PRIMARY KEY,
+                        path TEXT NOT NULL UNIQUE,
+                        content_hash TEXT NOT NULL,
+                        size_bytes INTEGER NOT NULL,
+                        language TEXT NOT NULL,
+                        last_commit_at INTEGER
+                    );
+                    CREATE TABLE symbols (
+                        id INTEGER PRIMARY KEY,
+                        file_path TEXT NOT NULL,
+                        name TEXT NOT NULL,
+                        kind TEXT NOT NULL,
+                        line INTEGER NOT NULL,
+                        end_line INTEGER NOT NULL,
+                        export_name TEXT
+                    );
+                    INSERT INTO files (path, content_hash, size_bytes, language, last_commit_at)
+                    VALUES
+                        ('scripts/wiki_search.py', 'a', 1, 'python', NULL),
+                        ('src/behavior_rule.py', 'b', 1, 'python', NULL);
+                    INSERT INTO symbols (file_path, name, kind, line, end_line)
+                    VALUES
+                        ('scripts/wiki_search.py', '_score_page', 'function', 1, 10),
+                        ('scripts/wiki_search.py', '_log_retrieval_metrics', 'function', 12, 20),
+                        ('src/behavior_rule.py', 'BehaviorRule', 'class', 1, 10);
+                    """
+                )
+
+            ranked, _ = rank_file_lanes(
+                target=target,
+                task_description="Refactor retrieval ranking flow for clarity while preserving behavior",
+                database_path=database_path,
+                max_items=2,
+                max_agentic_items=0,
+            )
+            ranked_paths = [rf.file_path for rf in ranked]
+            self.assertEqual(ranked_paths[0], "scripts/wiki_search.py")
+
     def test_rank_file_lanes_prioritizes_docs_for_documentation_intent(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             target = Path(temp_dir)
@@ -838,6 +928,58 @@ class RankFilesTests(unittest.TestCase):
                 {
                     "wiki/user/architecture/ccw-wikiagent-boundary.md",
                     "wiki/user/ops/specs/phase-45-compiler-pipeline-spec.md",
+                },
+            )
+            self.assertIn("AGENTS.md", [rf.file_path for rf in agentic_ranked])
+
+    def test_rank_file_lanes_docs_intent_beats_dense_test_and_source_overlap(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            state_dir = target / ".ccw"
+            state_dir.mkdir(parents=True, exist_ok=True)
+            (state_dir / "compiled").mkdir(parents=True, exist_ok=True)
+            (state_dir / "snapshots").mkdir(parents=True, exist_ok=True)
+            write_text(state_dir / "config.yaml", "config_version: 1\n")
+            database_path = state_dir / "index.sqlite"
+
+            with sqlite3.connect(database_path) as connection:
+                connection.executescript(
+                    """
+                    CREATE TABLE files (
+                        id INTEGER PRIMARY KEY,
+                        path TEXT NOT NULL UNIQUE,
+                        content_hash TEXT NOT NULL,
+                        size_bytes INTEGER NOT NULL,
+                        language TEXT NOT NULL,
+                        last_commit_at INTEGER
+                    );
+                    INSERT INTO files (path, content_hash, size_bytes, language, last_commit_at)
+                    VALUES
+                        ('AGENTS.md', 'a', 1, 'markdown', NULL),
+                        ('wiki/user/index.md', 'b', 1, 'markdown', NULL),
+                        ('wiki/user/log.md', 'c', 1, 'markdown', NULL),
+                        ('tests/retrieval_ranking_behavior_test.py', 'd', 1, 'python', NULL),
+                        ('tests/ranking_tie_handling_test.py', 'e', 1, 'python', NULL),
+                        ('src/retrieval/ranking_flow.py', 'f', 1, 'python', NULL),
+                        ('src/retrieval/behavior_rules.py', 'g', 1, 'python', NULL),
+                        ('wiki/user/architecture/retrieval-ranking-behavior.md', 'h', 1, 'markdown', NULL),
+                        ('wiki/user/ops/specs/retrieval-ranking-troubleshooting-spec.md', 'i', 1, 'markdown', NULL);
+                    """
+                )
+
+            task_ranked, agentic_ranked = rank_file_lanes(
+                target=target,
+                task_description="Document retrieval ranking behavior and troubleshooting notes",
+                database_path=database_path,
+                max_items=10,
+                max_agentic_items=3,
+            )
+            task_paths = [rf.file_path for rf in task_ranked]
+            self.assertEqual(
+                set(task_paths[:2]),
+                {
+                    "wiki/user/architecture/retrieval-ranking-behavior.md",
+                    "wiki/user/ops/specs/retrieval-ranking-troubleshooting-spec.md",
                 },
             )
             self.assertIn("AGENTS.md", [rf.file_path for rf in agentic_ranked])

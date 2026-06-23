@@ -122,7 +122,7 @@ pipx upgrade ccw-mcp
 `uvx`-launched clients:
 
 ```bash
-uvx --refresh ccw-mcp==0.1.7 --help
+uvx --refresh ccw-mcp==0.1.8 --help
 ```
 
 APM-based clients:
@@ -459,12 +459,20 @@ management.
 python -m unittest
 ```
 
-168 tests covering CLI surfaces, compiler passes, pipeline composition, MCP
+171 tests covering CLI surfaces, compiler passes, pipeline composition, MCP
 tools, session bundle, Conductor scaffold, and the end-to-end value integration.
 
 See `CONTRIBUTING.md` for contribution flow and documentation expectations.
 
 ## Public release notes
+
+- `0.1.8` — lane-quality ranking follow-up:
+  - boosts docs-shaped tasks so wiki/docs/spec pages remain in `## Files` even
+    when many retrieval-themed tests/source files have strong lexical overlap
+  - strengthens refactor intent weighting to favor source files over tests for
+    "refactor ... preserving behavior" style tasks
+  - improves retrieval/ranking semantic matching via task-term aliases and
+    underscore-aware token matching (e.g., `wiki_search`)
 
 - `0.1.7` — docs-intent ranking follow-up:
   - prioritizes architecture/spec documentation paths (for example
@@ -511,6 +519,7 @@ See `CONTRIBUTING.md` for contribution flow and documentation expectations.
   - keeps wiki log snippets tail-biased to prioritize recent project history
 
 Detailed notes:
+- `docs/releases/0.1.8.md`
 - `docs/releases/0.1.7.md`
 - `docs/releases/0.1.6.md`
 - `docs/releases/0.1.5.md`
