@@ -173,6 +173,28 @@ _TASK_DOC_HINT_TOKENS = frozenset({
     "wiki",
 })
 
+_TASK_DOC_INTENT_PRIMARY_TOKENS = frozenset({
+    "doc",
+    "docs",
+    "document",
+    "documentation",
+    "explain",
+    "guide",
+    "note",
+    "notes",
+    "readme",
+    "spec",
+    "specification",
+    "troubleshooting",
+})
+
+_TASK_DOC_INTENT_SECONDARY_TOKENS = frozenset({
+    "behavior",
+    "behaviour",
+    "note",
+    "notes",
+})
+
 _TASK_SOURCE_PATH_SEGMENTS = frozenset({
     "app",
     "backend",
@@ -233,6 +255,47 @@ _TASK_CODE_EXTENSIONS = frozenset({
 
 _TASK_DOC_EXTENSIONS = _AGENTIC_CONTEXT_HINT_DOC_EXTENSIONS | frozenset({
     "mdown",
+})
+
+_TASK_DOC_CANDIDATE_EXCLUDED_BASENAMES = frozenset({
+    "agents.md",
+    "context.md",
+    "claude.md",
+    "gemini.md",
+    "codex.md",
+    "copilot_instructions.md",
+    "copilot-instructions.md",
+    "copilot-instructions.instructions.md",
+    ".mcp.json",
+    "mcp.json",
+    "mcp.yml",
+    "mcp.yaml",
+    "apm.yml",
+    "apm.yaml",
+})
+
+_TASK_DOC_CANDIDATE_EXCLUDED_SEGMENTS = frozenset({
+    ".claude",
+    ".codex",
+    ".cursor",
+    ".gemini",
+    ".github",
+    ".opencode",
+})
+
+_TASK_DOC_FILENAME_HINT_TOKENS = frozenset({
+    "architecture",
+    "behavior",
+    "behaviour",
+    "changelog",
+    "guide",
+    "manual",
+    "note",
+    "notes",
+    "readme",
+    "spec",
+    "specification",
+    "troubleshooting",
 })
 
 
@@ -388,9 +451,11 @@ def _score_task_file(
     file_symbols: list[str],
     last_commit_at: int | None,
     now_ts: int,
+    docs_intent: bool,
 ) -> float:
     score = float(_base_score(file_path, tokens))
     score += _score_task_role(file_path=file_path, tokens=tokens)
+    score += _documentation_intent_file_boost(file_path=file_path, docs_intent=docs_intent)
     for symbol_name in file_symbols:
         for token in tokens:
             if token in symbol_name.lower():
@@ -460,6 +525,51 @@ def _score_task_role(file_path: str, tokens: list[str]) -> float:
     return score
 
 
+def _has_documentation_intent(tokens: list[str]) -> bool:
+    token_set = set(tokens)
+    if token_set & _TASK_DOC_INTENT_PRIMARY_TOKENS:
+        return True
+    has_behavior = bool(token_set & {"behavior", "behaviour"})
+    has_notes = bool(token_set & (_TASK_DOC_INTENT_SECONDARY_TOKENS - {"behavior", "behaviour"}))
+    return has_behavior and has_notes
+
+
+def _is_task_documentation_candidate(file_path: str) -> bool:
+    normalized = _normalize_path(file_path)
+    segments = _path_segments(normalized)
+    if not segments:
+        return False
+
+    basename = segments[-1].lower()
+    if basename in _TASK_DOC_CANDIDATE_EXCLUDED_BASENAMES:
+        return False
+
+    parent_segments = segments[:-1]
+    if any(segment in _TASK_DOC_CANDIDATE_EXCLUDED_SEGMENTS for segment in parent_segments):
+        return False
+
+    stem, dot, extension = basename.rpartition(".")
+    extension = extension.lower() if dot else ""
+
+    in_doc_tree = any(segment in _TASK_DOC_PATH_SEGMENTS for segment in parent_segments)
+    has_spec_name = "spec" in stem or "specification" in stem
+    has_doc_name_hint = any(token in stem for token in _TASK_DOC_FILENAME_HINT_TOKENS)
+    return (
+        extension in _TASK_DOC_EXTENSIONS
+        or in_doc_tree
+        or has_spec_name
+        or has_doc_name_hint
+    )
+
+
+def _documentation_intent_file_boost(file_path: str, docs_intent: bool) -> float:
+    if not docs_intent:
+        return 0.0
+    if _is_task_documentation_candidate(file_path):
+        return 8.0
+    return 0.0
+
+
 def _agentic_lane_item_limit(max_items: int) -> int:
     if max_items <= 3:
         return 0
@@ -493,6 +603,7 @@ def rank_file_lanes(
     tokens = _tokenize(task_description)
     if not tokens or max_items <= 0:
         return ([], [])
+    docs_intent = _has_documentation_intent(tokens)
 
     try:
         connection = sqlite3.connect(database_path)
@@ -533,8 +644,9 @@ def rank_file_lanes(
     agentic_scored: list[tuple[float, str, str]] = []
     for file_path, language, last_commit_at in rows:
         normalized_path = _normalize_path(file_path)
+        prioritize_in_task_lane = docs_intent and _is_task_documentation_candidate(normalized_path)
         agentic_score = _agentic_context_score(file_path)
-        if agentic_score > 0 and max_agentic_items > 0:
+        if agentic_score > 0 and max_agentic_items > 0 and not prioritize_in_task_lane:
             if _is_agentic_anchor_path(normalized_path):
                 agentic_anchor_scored.append((agentic_score, file_path, language))
             else:
@@ -550,6 +662,7 @@ def rank_file_lanes(
             file_symbols=symbol_names.get(file_path, []),
             last_commit_at=last_commit_at,
             now_ts=now_ts,
+            docs_intent=docs_intent,
         )
         if _is_third_party_path(normalized_path):
             third_party_task_scored.append((score, file_path, language))

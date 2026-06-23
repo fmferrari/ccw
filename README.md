@@ -122,7 +122,7 @@ pipx upgrade ccw-mcp
 `uvx`-launched clients:
 
 ```bash
-uvx --refresh ccw-mcp==0.1.5 --help
+uvx --refresh ccw-mcp==0.1.6 --help
 ```
 
 APM-based clients:
@@ -459,12 +459,22 @@ management.
 python -m unittest
 ```
 
-160 tests covering CLI surfaces, compiler passes, pipeline composition, MCP
+167 tests covering CLI surfaces, compiler passes, pipeline composition, MCP
 tools, session bundle, Conductor scaffold, and the end-to-end value integration.
 
 See `CONTRIBUTING.md` for contribution flow and documentation expectations.
 
 ## Public release notes
+
+- `0.1.6` — Phase 5F lane-quality ranking fixes:
+  - adds documentation-intent task-lane boosting so docs-shaped tasks lead with
+    generic docs/wiki/spec evidence in `## Files`
+  - keeps instruction/harness anchors in `## Agentic Context` while still
+    allowing docs-shaped files to rank in the task lane for docs tasks
+  - excludes `dev-dist/` during indexing (alongside existing `dist/` and
+    `build/` exclusions) so build artifacts do not crowd ranking lanes
+  - adds deterministic regression coverage for docs-lane leadership and
+    build-artifact index exclusion
 
 - `0.1.5` — lane-ranking correctness fixes (follow-up to the 0.1.4 audit):
   - keeps every agentic anchor (e.g. `AGENTS.md`, `CONTEXT.md`, wiki
@@ -493,6 +503,7 @@ See `CONTRIBUTING.md` for contribution flow and documentation expectations.
   - keeps wiki log snippets tail-biased to prioritize recent project history
 
 Detailed notes:
+- `docs/releases/0.1.6.md`
 - `docs/releases/0.1.5.md`
 - `docs/releases/0.1.4.md`
 - `docs/releases/0.1.3.md`

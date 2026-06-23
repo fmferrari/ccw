@@ -274,6 +274,30 @@ class IndexCliTests(unittest.TestCase):
             if symlink_created:
                 self.assertNotIn("linked.py", indexed_paths)
 
+    def test_index_excludes_build_artifact_directories(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            self.assertEqual(run_ccw("init", cwd=target).returncode, 0)
+
+            write_text(target / "src" / "app.py", "print('hello')\n")
+            write_text(target / "app" / "dev-dist" / "bundle.js", "console.log('dev-dist');\n")
+            write_text(target / "dist" / "bundle.js", "console.log('dist');\n")
+            write_text(target / "build" / "bundle.js", "console.log('build');\n")
+
+            result = run_ccw("index", cwd=target)
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            database_path = target / ".ccw" / "index.sqlite"
+            rows = fetch_files_rows(database_path)
+            self.assertEqual(
+                rows,
+                [expected_row("src/app.py", "print('hello')\n", "python")],
+            )
+            indexed_paths = [path for path, *_ in rows]
+            self.assertNotIn("app/dev-dist/bundle.js", indexed_paths)
+            self.assertNotIn("dist/bundle.js", indexed_paths)
+            self.assertNotIn("build/bundle.js", indexed_paths)
+
     def test_index_is_stable_when_repo_contents_do_not_change(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             target = Path(temp_dir)

@@ -742,6 +742,57 @@ class RankFilesTests(unittest.TestCase):
             doc_paths = [rf.file_path for rf in doc_ranked]
             self.assertEqual(doc_paths[0], "docs/retrieval-ranking.md")
 
+    def test_rank_file_lanes_prioritizes_docs_for_documentation_intent(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            state_dir = target / ".ccw"
+            state_dir.mkdir(parents=True, exist_ok=True)
+            (state_dir / "compiled").mkdir(parents=True, exist_ok=True)
+            (state_dir / "snapshots").mkdir(parents=True, exist_ok=True)
+            write_text(state_dir / "config.yaml", "config_version: 1\n")
+            database_path = state_dir / "index.sqlite"
+
+            with sqlite3.connect(database_path) as connection:
+                connection.executescript(
+                    """
+                    CREATE TABLE files (
+                        id INTEGER PRIMARY KEY,
+                        path TEXT NOT NULL UNIQUE,
+                        content_hash TEXT NOT NULL,
+                        size_bytes INTEGER NOT NULL,
+                        language TEXT NOT NULL,
+                        last_commit_at INTEGER
+                    );
+                    INSERT INTO files (path, content_hash, size_bytes, language, last_commit_at)
+                    VALUES
+                        ('src/retrieval/ranker.py', 'a', 1, 'python', NULL),
+                        ('tests/test_ranker.py', 'b', 1, 'python', NULL),
+                        ('AGENTS.md', 'c', 1, 'markdown', NULL),
+                        ('wiki/user/ops/specs/retrieval-behavior-spec.md', 'd', 1, 'markdown', NULL),
+                        ('docs/troubleshooting/retrieval-behavior.md', 'e', 1, 'markdown', NULL);
+                    """
+                )
+
+            task_ranked, agentic_ranked = rank_file_lanes(
+                target=target,
+                task_description="Explain troubleshooting notes for retrieval behavior documentation",
+                database_path=database_path,
+                max_items=6,
+                max_agentic_items=2,
+            )
+
+            task_paths = [rf.file_path for rf in task_ranked]
+            agentic_paths = [rf.file_path for rf in agentic_ranked]
+            self.assertEqual(
+                set(task_paths[:2]),
+                {
+                    "wiki/user/ops/specs/retrieval-behavior-spec.md",
+                    "docs/troubleshooting/retrieval-behavior.md",
+                },
+            )
+            self.assertIn("AGENTS.md", agentic_paths)
+            self.assertNotIn("AGENTS.md", task_paths)
+
     def test_rank_file_lanes_keeps_all_anchors_under_default_limit(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             target = Path(temp_dir)

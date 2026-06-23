@@ -34,6 +34,7 @@ EXCLUDED_DIRECTORY_NAMES = {
     "node_modules",
     "bower_components",
     "build",
+    "dev-dist",
     "dist",
     "out",
     ".next",
