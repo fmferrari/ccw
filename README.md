@@ -10,12 +10,33 @@ back to the real index. No vector store. No LLM in the critical path. Receipts
 included.
 
 The compiled artifact and a portable session bundle are the primary surfaces.
-An MCP server exposes the same pipeline as callable tools so an agent framework
-can drive the full loop without shelling out.
+An MCP server exposes the same pipeline as callable tools so your existing
+harness, editor, agent, or workflow runner can consume deterministic context
+without shelling out.
 
-CCW intentionally keeps workflow packaging, harness adapters, and
-orchestrator-specific definitions in a separate companion repo (`ccw-stack`)
-so this core stays deterministic and inspectable.
+CCW is not an agent framework, coding assistant, editor, orchestrator, or
+harness adapter. It does one job: compile grounded repository context that
+other tools can use.
+
+## What CCW is for
+
+- Use CCW when you want a task-scoped repo briefing with explicit receipts.
+- Use it when hidden editor context, giant prompt dumps, or vector search feel
+  too opaque for a coding task.
+- Bring your own harness. CCW provides CLI commands, MCP tools, and file-only
+  session bundles; it does not manage model sessions or execute agent loops.
+
+## Compared to adjacent tools
+
+- **Repomix** packs a repository for an LLM. CCW compiles a validated,
+  task-specific artifact from an indexed repo, explicit memory, and a budget.
+- **aider repo map** gives aider's own agent a compact code map. CCW produces
+  provider-neutral artifacts any compatible tool can consume.
+- **LangGraph** orchestrates stateful agents. CCW prepares the deterministic
+  repo context such an agent may read before acting.
+- **Cursor, Claude Code, Codex, Copilot, and similar tools** include their own
+  context systems. CCW makes context selection inspectable outside any one
+  product.
 
 ## Why deterministic compilation matters
 
@@ -138,10 +159,9 @@ Token budgets per mode:
 
 ## MCP server
 
-`ccw-mcp` exposes the full pipeline as MCP tools so an agent framework can
-drive the entire loop without shelling out. The target repo is set via the
-`CCW_TARGET_ROOT` environment variable or the `target_path` parameter on each
-tool call.
+`ccw-mcp` exposes the full compiler pipeline as MCP tools. The target repo is
+set via the `CCW_TARGET_ROOT` environment variable or the `target_path`
+parameter on each tool call.
 
 ```bash
 # Manual launch (for testing)
@@ -384,14 +404,15 @@ Generates a `ccw-code-task/` directory with a shell script showing the full
 pipeline as script steps (init → index → classify → compile → session prepare →
 validate) and a README explaining the consumption contract.
 
-Full Conductor workflow packaging and harness adapters belong in the companion
-`ccw-stack` repo.
+This scaffold is only an example of how to call CCW from a workflow runner.
+CCW does not provide workflow packaging, harness adapters, or model-session
+management.
 
 ## Architecture boundary
 
 - **CCW** — deterministic context compiler and post-run update engine (this repo)
-- **CCW Stack** — companion repo for Conductor workflow packaging, harness adapters, and optional portable brain behavior
-- **Conductor** — the external workflow orchestrator that calls CCW as a script or tool step
+- **Harness or workflow runner** — your existing tool that calls CCW through CLI,
+  MCP, or file-only session bundles
 - **Model provider** — the inference backend that consumes CCW artifacts (OpenAI, Anthropic, GitHub Models, etc.)
 
 ## Development
