@@ -122,7 +122,7 @@ pipx upgrade ccw-mcp
 `uvx`-launched clients:
 
 ```bash
-uvx --refresh ccw-mcp==0.1.13 --help
+uvx --refresh ccw-mcp==0.1.14 --help
 ```
 
 APM-based clients:
@@ -459,12 +459,21 @@ management.
 python -m unittest
 ```
 
-177 tests covering CLI surfaces, compiler passes, pipeline composition, MCP
+180 tests covering CLI surfaces, compiler passes, pipeline composition, MCP
 tools, session bundle, Conductor scaffold, and the end-to-end value integration.
 
 See `CONTRIBUTING.md` for contribution flow and documentation expectations.
 
 ## Public release notes
+
+- `0.1.14` — lane-quality anchor and refactor-classification follow-up:
+  - keeps docs-shaped tasks from stealing the five canonical repo anchors out of
+    `## Agentic Context` by pinning `AGENTS.md`, `wiki/AGENTS.md`, `CONTEXT.md`,
+    `wiki/user/index.md`, and `wiki/user/log.md`
+  - classifies refactor prompts phrased as "clarity"/"preserving behavior" as
+    `refactor` instead of `docs`
+  - caps repeated `.github`/`.opencode`/`.cursor` instruction-family files so
+    duplicate harness guidance cannot crowd out canonical anchors
 
 - `0.1.13` — corrective version-metadata release:
   - aligns the package runtime version and APM manifest with the published
@@ -544,6 +553,7 @@ See `CONTRIBUTING.md` for contribution flow and documentation expectations.
   - keeps wiki log snippets tail-biased to prioritize recent project history
 
 Detailed notes:
+- `docs/releases/0.1.14.md`
 - `docs/releases/0.1.13.md`
 - `docs/releases/0.1.12.md`
 - `docs/releases/0.1.11.md`
