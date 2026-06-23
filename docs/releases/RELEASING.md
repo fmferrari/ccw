@@ -127,6 +127,7 @@ Document upgrade commands for users in release notes:
 - `uvx --refresh ccw-mcp==X.Y.Z --help`
 - restart harness/editor process after upgrade
 - update any downstream audit prompts that pin `ccw-mcp==X.Y.Z` (for example
-  `docs/prompts/wikiagent-lane-regression.md`)
+  the private wiki prompt at `wiki/user/ops/prompts/wikiagent-lane-regression.md`,
+  available when the local private wiki is mounted)
 
 Without process restart, MCP clients may keep running an older server binary.
