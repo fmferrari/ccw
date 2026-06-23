@@ -27,6 +27,10 @@ python -m unittest
 ## Documentation expectations
 
 - Update `README.md` when public CLI behavior, install steps, or examples change.
+- For packaged releases, follow `docs/releases/RELEASING.md` and add release notes
+  under `docs/releases/`.
+- Use `scripts/release-pypi.sh` for PyPI upload so local `.env` token handling
+  stays consistent and secret-safe.
 - Update the relevant page under `wiki/user/` and append one line to
   `wiki/user/log.md` when architecture, roadmap, slice, or workflow assumptions
   change.

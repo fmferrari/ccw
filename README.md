@@ -102,6 +102,44 @@ ccw --help
 python -c "import ccw; print(ccw.__version__)"
 ```
 
+## Updating clients
+
+After a new release, update both the package and the client runtime that launches
+the MCP server.
+
+Python environment installs:
+
+```bash
+pip install -U ccw-mcp
+```
+
+Isolated `pipx` installs:
+
+```bash
+pipx upgrade ccw-mcp
+```
+
+`uvx`-launched clients:
+
+```bash
+uvx --refresh ccw-mcp==0.1.3 --help
+```
+
+APM-based clients:
+
+```bash
+apm install fmferrari/ccw --target copilot
+```
+
+Then restart the harness/editor process so it reloads the server binary. Without
+a restart, clients may continue running an old server version.
+
+Quick verification:
+
+```bash
+python -c "import ccw; print(ccw.__version__)"
+```
+
 ## End-to-end demo
 
 The full value loop in five CLI steps:
@@ -425,6 +463,22 @@ python -m unittest
 tools, session bundle, Conductor scaffold, and the end-to-end value integration.
 
 See `CONTRIBUTING.md` for contribution flow and documentation expectations.
+
+## Public release notes
+
+- `0.1.3` — lane-aware compilation update:
+  - separates ranked task evidence (`## Files`) from project/harness context
+    (`## Agentic Context`)
+  - broadens harness context detection by default (`.cursor`, `.codex`,
+    `.claude`, GitHub/Copilot instructions, MCP config patterns)
+  - keeps vendored/tooling directories from crowding context lanes
+  - keeps wiki log snippets tail-biased to prioritize recent project history
+
+Detailed notes: `docs/releases/0.1.3.md`
+
+Release process for maintainers: `docs/releases/RELEASING.md`
+
+Maintainer publish helper (loads local `.env` token safely): `scripts/release-pypi.sh`
 
 ## Community
 
