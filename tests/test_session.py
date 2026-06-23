@@ -1,13 +1,19 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import tempfile
 import unittest
 from pathlib import Path
 
 from ccw.init import init_local_state
 from ccw.index import index_repository
-from ccw.session import prepare_session_bundle, validate_session_bundle
+from ccw.session import (
+    prepare_context_payload,
+    prepare_session_bundle,
+    read_compiled_context_payload,
+    validate_session_bundle,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -169,6 +175,83 @@ class PrepareSessionBundleTests(unittest.TestCase):
             self.assertIn("before re-gathering", session_text)
             self.assertIn("request a refreshed bundle", session_text)
             self.assertIn("review", session_text)
+
+
+class ContextPayloadTests(unittest.TestCase):
+    def test_prepare_context_payload_returns_validated_content_and_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            init_local_state(target)
+            src = target / "src"
+            src.mkdir()
+            (src / "auth.py").write_text("def login_handler(user):\n    return user\n", encoding="utf-8")
+            index_repository(target)
+
+            payload = prepare_context_payload(
+                target=target,
+                task_description="Fix the login handler",
+                mode="bugfix",
+            )
+
+            self.assertTrue(payload["valid"], payload["errors"])
+            self.assertEqual(payload["errors"], [])
+            self.assertIn("before re-gathering", str(payload["session_instructions"]))
+            self.assertIn("src/auth.py", str(payload["compiled_context"]))
+            self.assertIn("Fix the login handler", str(payload["compiled_context"]))
+            self.assertEqual(payload["mode"], "bugfix")
+            self.assertGreater(int(payload["budget"]), 0)
+            self.assertGreater(int(payload["content_bytes"]), 0)
+            self.assertGreater(int(payload["content_chars"]), 0)
+            self.assertEqual(
+                payload["content_hash"],
+                hashlib.sha256(str(payload["compiled_context"]).encode("utf-8")).hexdigest(),
+            )
+            source_paths = payload["source_paths"]
+            self.assertIsInstance(source_paths, dict)
+            self.assertTrue(Path(str(source_paths["session_file"])).is_file())
+            self.assertTrue(Path(str(source_paths["compiled_context"])).is_file())
+            self.assertTrue(Path(str(source_paths["manifest"])).is_file())
+
+    def test_read_compiled_context_payload_fails_closed_on_stale_bundle(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            init_local_state(target)
+            src = target / "src"
+            src.mkdir()
+            (src / "auth.py").write_text("def login_handler(user):\n    return user\n", encoding="utf-8")
+            index_repository(target)
+
+            bundle_dir = prepare_session_bundle(
+                target=target,
+                task_description="Fix the login handler",
+            )
+            (src / "session_store.py").write_text("def issue_token(user):\n    return user\n", encoding="utf-8")
+            index_repository(target)
+
+            payload = read_compiled_context_payload(bundle_dir=bundle_dir, target=target)
+
+            self.assertFalse(payload["valid"])
+            self.assertEqual(payload["compiled_context"], "")
+            self.assertTrue(any("index_hash mismatch" in error for error in payload["errors"]))
+
+    def test_read_compiled_context_payload_fails_closed_on_invalid_artifact(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            init_local_state(target)
+            src = target / "src"
+            src.mkdir()
+            (src / "auth.py").write_text("def login_handler(user):\n    return user\n", encoding="utf-8")
+            index_repository(target)
+
+            artifact_path = target / ".ccw" / "compiled" / "broken.md"
+            artifact_path.parent.mkdir(parents=True, exist_ok=True)
+            artifact_path.write_text("# Broken context\n", encoding="utf-8")
+
+            payload = read_compiled_context_payload(artifact_path=artifact_path, target=target)
+
+            self.assertFalse(payload["valid"])
+            self.assertEqual(payload["compiled_context"], "")
+            self.assertTrue(any("frontmatter" in error for error in payload["errors"]))
 
 
 if __name__ == "__main__":

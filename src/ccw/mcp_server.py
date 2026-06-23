@@ -13,7 +13,12 @@ from ccw.episodes import add_episode as persist_episode
 from ccw.facts import add_fact as persist_fact
 from ccw.index import index_repository
 from ccw.init import init_local_state, require_initialized_local_state, resolve_target_directory
-from ccw.session import prepare_session_bundle, validate_session_bundle
+from ccw.session import (
+    prepare_context_payload as build_context_payload,
+    prepare_session_bundle,
+    read_compiled_context_payload,
+    validate_session_bundle,
+)
 from ccw.update import post_run_update
 from ccw.validate import validate_compiled_artifact as validate_artifact_file
 
@@ -402,6 +407,98 @@ def prepare_session(
         "index_hash": str(manifest.get("index_hash", "")),
         "created_at": str(manifest.get("created_at", "")),
     }
+
+
+@mcp.tool()
+def prepare_context_payload(
+    task_description: str,
+    target_path: str = "",
+    output_dir: str = "",
+    mode: str = "",
+    budget: int = 0,
+) -> dict[str, object]:
+    """Compile, validate, and return task context content in one MCP response.
+
+    This is the portable ingestion tool for generic MCP-capable harnesses. It
+    prepares the same session bundle as prepare_session, validates freshness and
+    artifact grounding, then returns the actual SESSION.md instructions and
+    compiled-context.md content directly in the tool payload.
+
+    Use this first for non-trivial repository tasks when the harness cannot be
+    trusted to read returned file paths on its own. The returned context is
+    task-scoped and bounded by the compile recipe; it is not global prompt
+    injection and should not be reused for unrelated tasks.
+
+    Args:
+        task_description: Free-text description of the task.
+        target_path: Repo root. Defaults to CCW_TARGET_ROOT.
+        output_dir: Where to write the backing bundle directory. Relative paths
+                    resolve against target_path. Defaults to .ccw/session/latest/.
+        mode: Override compile mode: bugfix | implementation | review | refactor.
+              If empty, auto-classifies.
+        budget: Override token budget. If 0, uses the recipe default.
+
+    Returns:
+        valid: True only when the bundle and compiled artifact are fresh and valid.
+        errors: Explicit validation errors when valid is False.
+        session_instructions: Contents of SESSION.md.
+        compiled_context: Contents of compiled-context.md.
+        manifest: Parsed session.json metadata.
+        content_hash: SHA-256 hash of compiled_context.
+        content_bytes: UTF-8 byte count of compiled_context.
+        content_chars: Character count of compiled_context.
+        index_hash: Index hash recorded at compile time.
+        created_at: Compilation timestamp.
+        mode: Compile mode used.
+        budget: Token budget applied.
+        bundle_dir: Backing bundle directory path.
+        source_paths: Paths for SESSION.md, compiled-context.md, and session.json.
+    """
+    target = _resolve_target_path(target_path)
+    resolved_output_dir = Path(output_dir.strip()) if output_dir.strip() else None
+    resolved_budget = budget if budget > 0 else None
+    resolved_mode = mode.strip() or None
+    payload = build_context_payload(
+        target=target,
+        task_description=task_description,
+        output_dir=resolved_output_dir,
+        mode=resolved_mode,
+        budget=resolved_budget,
+    )
+    payload["target_path"] = target.as_posix()
+    return payload
+
+
+@mcp.tool()
+def read_compiled_context(
+    path: str,
+    target_path: str = "",
+) -> dict[str, object]:
+    """Read an existing compiled artifact or session bundle as validated content.
+
+    The path may point to a session bundle directory containing SESSION.md,
+    compiled-context.md, and session.json, or directly to a compiled markdown
+    artifact. In both cases the artifact is structurally validated and its
+    index_hash must match the current repo index before compiled_context is
+    returned. Stale or invalid inputs fail closed with compiled_context empty
+    and explicit errors.
+
+    Args:
+        path: Bundle directory or compiled markdown artifact. Relative paths
+              resolve against target_path.
+        target_path: Repo root used for index freshness. Defaults to CCW_TARGET_ROOT.
+
+    Returns:
+        Same payload shape as prepare_context_payload.
+    """
+    target = _resolve_target_path(target_path)
+    resolved_path = _resolve_repo_path(target, path, "Context path")
+    if resolved_path.is_dir():
+        payload = read_compiled_context_payload(bundle_dir=resolved_path, target=target)
+    else:
+        payload = read_compiled_context_payload(artifact_path=resolved_path, target=target)
+    payload["target_path"] = target.as_posix()
+    return payload
 
 
 @mcp.tool()

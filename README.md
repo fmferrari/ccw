@@ -160,11 +160,59 @@ Available tools:
 | `compile_task_context` | Compile a bounded, grounded context artifact |
 | `prepare_session` | Compile and package a portable session bundle |
 | `validate_session` | Check bundle freshness against the current index hash |
+| `prepare_context_payload` | Compile, validate, and return the actual context markdown in one payload |
+| `read_compiled_context` | Read an existing bundle or artifact as validated content |
 | `update_memory` | Re-index and record a post-run episode and optional decision |
 | `validate_compiled_artifact` | Validate frontmatter, sections, and file paths |
 
 Every tool accepts an explicit `target_path`. If omitted, CCW reads
 `CCW_TARGET_ROOT` from the environment.
+
+### Portable MCP context ingestion
+
+For generic MCP harnesses, call `prepare_context_payload` first for any
+non-trivial repo task. Unlike `compile_task_context` or `prepare_session`, this
+returns the actual compiled markdown in the tool response, so the harness does
+not need custom file-reading behavior.
+
+Tool call shape:
+
+```json
+{
+  "task_description": "Fix the login bug",
+  "target_path": "/absolute/path/to/project",
+  "mode": "",
+  "budget": 0,
+  "output_dir": ""
+}
+```
+
+The response includes:
+
+| Field | Role |
+|------|------|
+| `valid` / `errors` | Fail-closed validation result |
+| `session_instructions` | Contents of `SESSION.md` |
+| `compiled_context` | The bounded task briefing markdown |
+| `manifest` | Parsed `session.json` metadata |
+| `content_hash` | SHA-256 hash of `compiled_context` |
+| `content_bytes` / `content_chars` | Explicit payload size counts |
+| `index_hash`, `created_at`, `mode`, `budget` | Compile receipts |
+| `bundle_dir`, `source_paths` | Backing files for audit/debugging |
+
+Consumption contract for MCP clients:
+
+1. Treat `compiled_context` as the primary briefing for that task only.
+2. Do not inject it globally or reuse it for unrelated tasks.
+3. If `valid` is false, do not use `compiled_context`; refresh with
+   `prepare_context_payload` after resolving the errors.
+4. After making changes, call `update_memory` so the next task sees the fresh
+   index and completed-run episode.
+
+Use `read_compiled_context` when a workflow already has a bundle directory or
+compiled artifact path and needs to return validated content through MCP. It
+checks freshness before returning markdown and fails closed on stale or invalid
+inputs.
 
 ## APM distribution
 
