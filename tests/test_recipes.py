@@ -27,11 +27,16 @@ class RecipeLookupTests(unittest.TestCase):
         recipe = get_recipe("refactor")
         self.assertEqual(recipe.mode, "refactor")
 
+    def test_get_recipe_docs(self) -> None:
+        recipe = get_recipe("docs")
+        self.assertEqual(recipe.mode, "docs")
+
     def test_get_recipe_case_insensitive(self) -> None:
         self.assertEqual(get_recipe("BUGFIX").mode, "bugfix")
         self.assertEqual(get_recipe("Implementation").mode, "implementation")
         self.assertEqual(get_recipe("Review").mode, "review")
         self.assertEqual(get_recipe("REFACTOR").mode, "refactor")
+        self.assertEqual(get_recipe("DOCS").mode, "docs")
 
     def test_get_recipe_unknown_mode_falls_back_to_implementation(self) -> None:
         recipe = get_recipe("unknown")
@@ -49,7 +54,7 @@ class RecipeLookupTests(unittest.TestCase):
 class RecipeDefinitionTests(unittest.TestCase):
     def test_all_recipes_have_required_sections(self) -> None:
         required = {"files", "symbols", "edges", "facts", "episodes", "constraints"}
-        for mode in ("bugfix", "implementation", "review", "refactor"):
+        for mode in ("bugfix", "implementation", "review", "refactor", "docs"):
             with self.subTest(mode=mode):
                 recipe = get_recipe(mode)
                 self.assertIn("files", recipe.sections)
@@ -65,7 +70,7 @@ class RecipeDefinitionTests(unittest.TestCase):
                     self.assertGreater(section.max_items, 0)
 
     def test_each_recipe_has_default_total_budget(self) -> None:
-        for mode in ("bugfix", "implementation", "review", "refactor"):
+        for mode in ("bugfix", "implementation", "review", "refactor", "docs"):
             with self.subTest(mode=mode):
                 recipe = get_recipe(mode)
                 self.assertGreater(recipe.total_budget, 0)
@@ -74,19 +79,20 @@ class RecipeDefinitionTests(unittest.TestCase):
         bugfix = get_recipe("bugfix")
         impl = get_recipe("implementation")
         review = get_recipe("review")
+        docs = get_recipe("docs")
         self.assertLessEqual(
             bugfix.total_budget,
-            min(impl.total_budget, review.total_budget),
+            min(impl.total_budget, review.total_budget, docs.total_budget),
         )
 
     def test_refactor_has_largest_budget(self) -> None:
         refactor = get_recipe("refactor")
-        for mode in ("bugfix", "implementation", "review"):
+        for mode in ("bugfix", "implementation", "review", "docs"):
             other = get_recipe(mode)
             self.assertGreaterEqual(refactor.total_budget, other.total_budget)
 
     def test_recipes_are_deterministic(self) -> None:
-        for mode in ("bugfix", "implementation", "review", "refactor"):
+        for mode in ("bugfix", "implementation", "review", "refactor", "docs"):
             with self.subTest(mode=mode):
                 self.assertIs(get_recipe(mode), get_recipe(mode))
 
@@ -143,7 +149,7 @@ class BudgetAllocationTests(unittest.TestCase):
             self.assertGreaterEqual(budget[section.name], section.min_budget)
 
     def test_each_section_given_from_all_modes_meets_minimum(self) -> None:
-        for mode in ("bugfix", "implementation", "review", "refactor"):
+        for mode in ("bugfix", "implementation", "review", "refactor", "docs"):
             with self.subTest(mode=mode):
                 recipe = get_recipe(mode)
                 budget = allocate_budget(recipe)
@@ -162,7 +168,7 @@ class BudgetAllocationTests(unittest.TestCase):
         self.assertGreaterEqual(budget["files"], budget["symbols"])
 
     def test_all_sections_present_in_allocation(self) -> None:
-        for mode in ("bugfix", "implementation", "review", "refactor"):
+        for mode in ("bugfix", "implementation", "review", "refactor", "docs"):
             with self.subTest(mode=mode):
                 recipe = get_recipe(mode)
                 budget = allocate_budget(recipe)

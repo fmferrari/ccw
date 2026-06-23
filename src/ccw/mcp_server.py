@@ -241,6 +241,8 @@ def classify_task(task_description: str, target_path: str = "") -> dict[str, str
                          tests. Use for defect fixes.
         implementation — 8,000 tokens. Broader file surface. Use for new features.
         review         — 8,000 tokens. Emphasizes tests and recent changes.
+        docs           — 7,000 tokens. Prioritizes wiki/docs/spec evidence for
+                         documentation and troubleshooting tasks.
         refactor       — 10,000 tokens. Widest file surface. Use for restructuring.
 
     You do not need to call this explicitly: prepare_session and
@@ -252,7 +254,7 @@ def classify_task(task_description: str, target_path: str = "") -> dict[str, str
         target_path: Repo root. Defaults to CCW_TARGET_ROOT.
 
     Returns:
-        mode: One of bugfix | implementation | review | refactor.
+        mode: One of bugfix | implementation | review | docs | refactor.
         task_description: The input text that was classified.
     """
     target = _resolve_target_path(target_path)
@@ -294,7 +296,7 @@ def compile_task_context(
         output_path: Where to write the artifact. Relative paths resolve against
                      target_path. Defaults to .ccw/compiled/latest.md.
         mode: Override compile mode. One of: bugfix, implementation, review,
-              refactor. If empty, auto-classifies from task_description.
+              docs, refactor. If empty, auto-classifies from task_description.
         budget: Override token budget. If 0, uses the recipe default for the mode.
 
     Returns:
@@ -365,7 +367,7 @@ def prepare_session(
         target_path: Repo root. Defaults to CCW_TARGET_ROOT.
         output_dir: Where to write the bundle directory. Relative paths resolve
                     against target_path. Defaults to .ccw/session/latest/.
-        mode: Override compile mode: bugfix | implementation | review | refactor.
+        mode: Override compile mode: bugfix | implementation | review | docs | refactor.
               If empty, auto-classifies.
         budget: Override token budget. If 0, uses the recipe default.
 
@@ -434,7 +436,7 @@ def prepare_context_payload(
         target_path: Repo root. Defaults to CCW_TARGET_ROOT.
         output_dir: Where to write the backing bundle directory. Relative paths
                     resolve against target_path. Defaults to .ccw/session/latest/.
-        mode: Override compile mode: bugfix | implementation | review | refactor.
+        mode: Override compile mode: bugfix | implementation | review | docs | refactor.
               If empty, auto-classifies.
         budget: Override token budget. If 0, uses the recipe default.
 

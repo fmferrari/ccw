@@ -58,6 +58,19 @@ _RECIPES: dict[str, Recipe] = {
             "constraints": Section("constraints", 0.5, 100, 5),
         },
     ),
+    "docs": Recipe(
+        mode="docs",
+        total_budget=7000,
+        sections={
+            "files": Section("files", 3.5, 600, 24),
+            "symbols": Section("symbols", 1.0, 200, 10),
+            "edges": Section("edges", 0.8, 150, 8),
+            "artifacts": Section("artifacts", 1.5, 300, 12),
+            "facts": Section("facts", 1.0, 200, 8),
+            "episodes": Section("episodes", 0.3, 50, 3),
+            "constraints": Section("constraints", 0.6, 120, 6),
+        },
+    ),
     "refactor": Recipe(
         mode="refactor",
         total_budget=10000,

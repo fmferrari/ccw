@@ -122,7 +122,7 @@ pipx upgrade ccw-mcp
 `uvx`-launched clients:
 
 ```bash
-uvx --refresh ccw-mcp==0.1.8 --help
+uvx --refresh ccw-mcp==0.1.9 --help
 ```
 
 APM-based clients:
@@ -459,12 +459,22 @@ management.
 python -m unittest
 ```
 
-171 tests covering CLI surfaces, compiler passes, pipeline composition, MCP
+175 tests covering CLI surfaces, compiler passes, pipeline composition, MCP
 tools, session bundle, Conductor scaffold, and the end-to-end value integration.
 
 See `CONTRIBUTING.md` for contribution flow and documentation expectations.
 
 ## Public release notes
+
+- `0.1.9` — lane-quality docs/refactor tuning follow-up:
+  - adds a deterministic `docs` task mode and recipe, so documentation-shaped
+    prompts no longer fall back to implementation mode
+  - makes lane ranking mode-aware and strengthens docs-lane priority for
+    `wiki/`, `docs/`, and `spec` evidence under docs tasks
+  - reduces refactor task test-file dominance by increasing refactor test
+    penalties and capping per-file symbol-match inflation
+  - improves retrieval-specific relevance with broader alias terms
+    (planner/router/tie/sort) and keeps underscore-aware matching
 
 - `0.1.8` — lane-quality ranking follow-up:
   - boosts docs-shaped tasks so wiki/docs/spec pages remain in `## Files` even
@@ -519,6 +529,7 @@ See `CONTRIBUTING.md` for contribution flow and documentation expectations.
   - keeps wiki log snippets tail-biased to prioritize recent project history
 
 Detailed notes:
+- `docs/releases/0.1.9.md`
 - `docs/releases/0.1.8.md`
 - `docs/releases/0.1.7.md`
 - `docs/releases/0.1.6.md`

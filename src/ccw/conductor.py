@@ -62,7 +62,7 @@ steps inside Microsoft Conductor or another workflow orchestrator.
 |------|---------|--------|
 | Init | `ccw init` | `.ccw/` runtime directory, SQLite schema, config |
 | Index | `ccw index` | `.ccw/index.sqlite`, `.ccw/snapshots/index.json` |
-| Classify | `ccw classify` | Mode string (bugfix/implementation/review/refactor) |
+| Classify | `ccw classify` | Mode string (bugfix/implementation/review/docs/refactor) |
 | Compile | `ccw compile` | `.ccw/compiled/.../compiled-context.md` |
 | Session prepare | `ccw session prepare` | `.ccw/session/latest/` bundle |
 | Session validate | `ccw session validate` | Exit code 0 or failure list |

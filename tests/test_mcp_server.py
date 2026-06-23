@@ -66,6 +66,12 @@ class McpServerTests(unittest.TestCase):
             )
             self.assertEqual(classify_payload["mode"], "bugfix")
 
+            classify_docs_payload = classify_task(
+                task_description="Document troubleshooting notes for login behavior",
+                target_path=str(target),
+            )
+            self.assertEqual(classify_docs_payload["mode"], "docs")
+
             compile_payload = compile_task_context(
                 task_description="Fix the login bug",
                 target_path=str(target),

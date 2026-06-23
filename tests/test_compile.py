@@ -832,6 +832,120 @@ class RankFilesTests(unittest.TestCase):
             ranked_paths = [rf.file_path for rf in ranked]
             self.assertEqual(ranked_paths[0], "scripts/wiki_search.py")
 
+    def test_rank_file_lanes_caps_symbol_boost_for_large_test_files(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            state_dir = target / ".ccw"
+            state_dir.mkdir(parents=True, exist_ok=True)
+            (state_dir / "compiled").mkdir(parents=True, exist_ok=True)
+            (state_dir / "snapshots").mkdir(parents=True, exist_ok=True)
+            write_text(state_dir / "config.yaml", "config_version: 1\n")
+            database_path = state_dir / "index.sqlite"
+
+            with sqlite3.connect(database_path) as connection:
+                connection.executescript(
+                    """
+                    CREATE TABLE files (
+                        id INTEGER PRIMARY KEY,
+                        path TEXT NOT NULL UNIQUE,
+                        content_hash TEXT NOT NULL,
+                        size_bytes INTEGER NOT NULL,
+                        language TEXT NOT NULL,
+                        last_commit_at INTEGER
+                    );
+                    CREATE TABLE symbols (
+                        id INTEGER PRIMARY KEY,
+                        file_path TEXT NOT NULL,
+                        name TEXT NOT NULL,
+                        kind TEXT NOT NULL,
+                        line INTEGER NOT NULL,
+                        end_line INTEGER NOT NULL,
+                        export_name TEXT
+                    );
+                    INSERT INTO files (path, content_hash, size_bytes, language, last_commit_at)
+                    VALUES
+                        ('tests/test_service.py', 'a', 1, 'python', NULL),
+                        ('agent/planner_schema.py', 'b', 1, 'python', NULL),
+                        ('scripts/wiki_search.py', 'c', 1, 'python', NULL);
+                    """
+                )
+                for idx in range(12):
+                    connection.execute(
+                        "INSERT INTO symbols (file_path, name, kind, line, end_line) VALUES (?, ?, 'function', ?, ?)",
+                        (
+                            "tests/test_service.py",
+                            f"test_retrieval_ranking_behavior_flow_case_{idx}",
+                            idx + 1,
+                            idx + 1,
+                        ),
+                    )
+                connection.execute(
+                    "INSERT INTO symbols (file_path, name, kind, line, end_line) VALUES (?, ?, 'class', 1, 20)",
+                    ("agent/planner_schema.py", "PlannerState",),
+                )
+                connection.execute(
+                    "INSERT INTO symbols (file_path, name, kind, line, end_line) VALUES (?, ?, 'function', 1, 20)",
+                    ("scripts/wiki_search.py", "_score_page",),
+                )
+
+            ranked, _ = rank_file_lanes(
+                target=target,
+                task_description="Refactor retrieval ranking flow for clarity while preserving behavior",
+                database_path=database_path,
+                max_items=3,
+                max_agentic_items=0,
+                task_mode="refactor",
+            )
+            ranked_paths = [rf.file_path for rf in ranked]
+            self.assertNotEqual(ranked_paths[0], "tests/test_service.py")
+            self.assertIn("scripts/wiki_search.py", ranked_paths[:2])
+
+    def test_rank_file_lanes_docs_mode_forces_documentation_lane_priority(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            state_dir = target / ".ccw"
+            state_dir.mkdir(parents=True, exist_ok=True)
+            (state_dir / "compiled").mkdir(parents=True, exist_ok=True)
+            (state_dir / "snapshots").mkdir(parents=True, exist_ok=True)
+            write_text(state_dir / "config.yaml", "config_version: 1\n")
+            database_path = state_dir / "index.sqlite"
+
+            with sqlite3.connect(database_path) as connection:
+                connection.executescript(
+                    """
+                    CREATE TABLE files (
+                        id INTEGER PRIMARY KEY,
+                        path TEXT NOT NULL UNIQUE,
+                        content_hash TEXT NOT NULL,
+                        size_bytes INTEGER NOT NULL,
+                        language TEXT NOT NULL,
+                        last_commit_at INTEGER
+                    );
+                    INSERT INTO files (path, content_hash, size_bytes, language, last_commit_at)
+                    VALUES
+                        ('tests/test_service.py', 'a', 1, 'python', NULL),
+                        ('agent/track_behavior.py', 'b', 1, 'python', NULL),
+                        ('wiki/user/architecture/code/index.md', 'c', 1, 'markdown', NULL),
+                        ('wiki/user/ops/specs/retrieval-ranking.md', 'd', 1, 'markdown', NULL);
+                    """
+                )
+
+            task_ranked, _ = rank_file_lanes(
+                target=target,
+                task_description="Retrieval ranking behavior and tie handling",
+                database_path=database_path,
+                max_items=4,
+                max_agentic_items=0,
+                task_mode="docs",
+            )
+            self.assertEqual(
+                {rf.file_path for rf in task_ranked[:2]},
+                {
+                    "wiki/user/architecture/code/index.md",
+                    "wiki/user/ops/specs/retrieval-ranking.md",
+                },
+            )
+
     def test_rank_file_lanes_prioritizes_docs_for_documentation_intent(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             target = Path(temp_dir)

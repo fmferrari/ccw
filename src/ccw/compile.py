@@ -206,8 +206,8 @@ _TASK_REFACTOR_HINT_TOKENS = frozenset({
 })
 
 _TASK_KEYWORD_ALIASES: dict[str, frozenset[str]] = {
-    "retrieval": frozenset({"lookup", "query", "search"}),
-    "ranking": frozenset({"order", "ordering", "rank", "score"}),
+    "retrieval": frozenset({"lookup", "planner", "query", "router", "search"}),
+    "ranking": frozenset({"order", "ordering", "rank", "score", "sort", "tie"}),
     "troubleshooting": frozenset({"debug", "diagnostic", "runbook"}),
 }
 
@@ -425,6 +425,12 @@ def _expand_task_terms(tokens: list[str]) -> list[str]:
     return expanded
 
 
+def _normalize_task_mode(task_mode: str | None) -> str:
+    if task_mode is None:
+        return ""
+    return task_mode.strip().lower()
+
+
 def _normalize_path(path: str) -> str:
     normalized = path.replace("\\", "/")
     while normalized.startswith("./"):
@@ -513,17 +519,24 @@ def _score_task_file(
     last_commit_at: int | None,
     now_ts: int,
     docs_intent: bool,
+    task_mode: str | None,
 ) -> float:
     search_terms = _expand_task_terms(tokens)
     score = float(_base_score(file_path, search_terms))
-    score += _score_task_role(file_path=file_path, tokens=tokens)
-    score += _documentation_intent_file_boost(file_path=file_path, docs_intent=docs_intent)
+    score += _score_task_role(file_path=file_path, tokens=tokens, task_mode=task_mode)
+    score += _documentation_intent_file_boost(
+        file_path=file_path,
+        docs_intent=docs_intent,
+        task_mode=task_mode,
+    )
+    symbol_boost = 0.0
     for symbol_name in file_symbols:
         symbol_lower = symbol_name.lower()
         for token in search_terms:
             if token in symbol_lower:
-                score += 2.0
+                symbol_boost += 2.0
                 break
+    score += min(symbol_boost, 8.0)
 
     if last_commit_at is not None:
         age = now_ts - last_commit_at
@@ -535,7 +548,7 @@ def _score_task_file(
     return score
 
 
-def _score_task_role(file_path: str, tokens: list[str]) -> float:
+def _score_task_role(file_path: str, tokens: list[str], task_mode: str | None) -> float:
     normalized = _normalize_path(file_path)
     segments = _path_segments(normalized)
     if not segments:
@@ -546,10 +559,14 @@ def _score_task_role(file_path: str, tokens: list[str]) -> float:
     extension = extension.lower() if dot else ""
     token_set = set(tokens)
 
-    asks_for_tests = bool(token_set & _TASK_TEST_HINT_TOKENS)
-    asks_for_docs = bool(token_set & _TASK_DOC_HINT_TOKENS)
-    asks_for_implementation = bool(token_set & _TASK_IMPLEMENT_HINT_TOKENS)
-    asks_for_refactor = bool(token_set & _TASK_REFACTOR_HINT_TOKENS)
+    mode = _normalize_task_mode(task_mode)
+    asks_for_tests = bool(token_set & _TASK_TEST_HINT_TOKENS) or mode == "review"
+    asks_for_docs = bool(token_set & _TASK_DOC_HINT_TOKENS) or mode == "docs"
+    asks_for_implementation = bool(token_set & _TASK_IMPLEMENT_HINT_TOKENS) or mode in {
+        "bugfix",
+        "implementation",
+    }
+    asks_for_refactor = bool(token_set & _TASK_REFACTOR_HINT_TOKENS) or mode == "refactor"
     if not asks_for_tests and not asks_for_docs and not asks_for_implementation:
         asks_for_implementation = True
 
@@ -580,25 +597,37 @@ def _score_task_role(file_path: str, tokens: list[str]) -> float:
     score = 0.0
     if in_source_tree:
         if asks_for_refactor:
-            score += 4.0
+            score += 5.0
+        elif asks_for_docs:
+            score += 0.5
         else:
             score += 3.0 if asks_for_implementation else 1.5
     if is_code_file:
         if asks_for_refactor:
-            score += 2.5
+            score += 3.0
+        elif asks_for_docs:
+            score -= 1.0
         else:
             score += 2.0 if asks_for_implementation else 1.0
     if looks_like_test_file:
         if asks_for_tests:
             score += 3.0
         elif asks_for_refactor:
-            score -= 4.0
+            score -= 7.0
+        elif asks_for_docs:
+            score -= 5.0
         else:
             score -= 2.0
     if is_doc_file:
-        score += 2.5 if asks_for_docs else -1.5
+        score += 4.0 if asks_for_docs else -1.5
     if in_doc_tree and asks_for_implementation:
         score -= 1.0
+
+    if mode == "docs":
+        if in_doc_tree:
+            score += 2.0
+        if in_source_tree:
+            score -= 1.0
 
     if stem and stem in {"index", "log", "changelog"} and asks_for_docs:
         score += 1.5
@@ -643,14 +672,24 @@ def _is_task_documentation_candidate(file_path: str) -> bool:
     )
 
 
-def _documentation_intent_file_boost(file_path: str, docs_intent: bool) -> float:
-    if not docs_intent:
+def _documentation_intent_file_boost(
+    file_path: str,
+    docs_intent: bool,
+    task_mode: str | None,
+) -> float:
+    mode = _normalize_task_mode(task_mode)
+    if not docs_intent and mode != "docs":
         return 0.0
     if _is_task_documentation_candidate(file_path):
         parent_segments = _path_segments(_normalize_path(file_path))[:-1]
-        boost = 10.0
+        if mode == "docs":
+            boost = 20.0
+            priority_boost = 10.0
+        else:
+            boost = 10.0
+            priority_boost = 6.0
         if any(segment in _TASK_DOC_PRIORITY_PATH_SEGMENTS for segment in parent_segments):
-            boost += 6.0
+            boost += priority_boost
         return boost
     return 0.0
 
@@ -684,11 +723,13 @@ def rank_file_lanes(
     database_path: Path,
     max_items: int = 20,
     max_agentic_items: int | None = None,
+    task_mode: str | None = None,
 ) -> tuple[list[RankedFile], list[RankedFile]]:
     tokens = _tokenize(task_description)
     if not tokens or max_items <= 0:
         return ([], [])
-    docs_intent = _has_documentation_intent(tokens)
+    mode = _normalize_task_mode(task_mode)
+    docs_intent = _has_documentation_intent(tokens) or mode == "docs"
 
     try:
         connection = sqlite3.connect(database_path)
@@ -729,7 +770,10 @@ def rank_file_lanes(
     agentic_scored: list[tuple[float, str, str]] = []
     for file_path, language, last_commit_at in rows:
         normalized_path = _normalize_path(file_path)
-        prioritize_in_task_lane = docs_intent and _is_task_documentation_candidate(normalized_path)
+        prioritize_in_task_lane = (
+            (docs_intent or mode == "docs")
+            and _is_task_documentation_candidate(normalized_path)
+        )
         agentic_score = _agentic_context_score(file_path)
         if agentic_score > 0 and max_agentic_items > 0 and not prioritize_in_task_lane:
             if _is_agentic_anchor_path(normalized_path):
@@ -748,6 +792,7 @@ def rank_file_lanes(
             last_commit_at=last_commit_at,
             now_ts=now_ts,
             docs_intent=docs_intent,
+            task_mode=mode,
         )
         if _is_third_party_path(normalized_path):
             third_party_task_scored.append((score, file_path, language))

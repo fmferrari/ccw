@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime
+import re
 import sqlite3
 from pathlib import Path
 
@@ -8,12 +9,27 @@ from ccw.init import require_initialized_local_state, resolve_target_directory
 from ccw.schema import bootstrap_index_database
 
 
-CLASSIFICATION_MODES = ("bugfix", "implementation", "review", "refactor")
+CLASSIFICATION_MODES = ("bugfix", "implementation", "review", "refactor", "docs")
 
 _KEYWORDS: dict[str, tuple[str, ...]] = {
     "review": ("review", "audit", "inspect", "check", "verify"),
     "bugfix": ("fix", "bug", "error", "crash", "broken", "defect"),
     "refactor": ("refactor", "restructure", "clean", "improve", "simplify", "extract", "consolidate", "rename", "optimize", "modernize", "migrate"),
+    "docs": (
+        "doc",
+        "docs",
+        "document",
+        "documentation",
+        "guide",
+        "guides",
+        "handbook",
+        "manual",
+        "readme",
+        "spec",
+        "specification",
+        "troubleshooting",
+        "wiki",
+    ),
     "implementation": ("implement", "add", "feature", "create", "build", "write", "new"),
 }
 
@@ -45,7 +61,7 @@ def classify(target: Path, text: str) -> str:
 
 
 def _determine_mode(text: str) -> str:
-    tokens = text.lower().split()
+    tokens = re.findall(r"[a-zA-Z_][a-zA-Z0-9_]*", text.lower())
     scores: dict[str, int] = {mode: 0 for mode in CLASSIFICATION_MODES}
 
     for token in tokens:
@@ -59,7 +75,13 @@ def _determine_mode(text: str) -> str:
 
     candidates = [mode for mode, score in scores.items() if score == max_score]
 
-    tie_priority: dict[str, int] = {"review": 0, "bugfix": 1, "refactor": 2, "implementation": 3}
+    tie_priority: dict[str, int] = {
+        "review": 0,
+        "bugfix": 1,
+        "docs": 2,
+        "refactor": 3,
+        "implementation": 4,
+    }
     candidates.sort(key=lambda m: tie_priority[m])
 
     return candidates[0]

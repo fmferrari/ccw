@@ -79,6 +79,7 @@ class RankFilesPass:
             task_description=ir.task_description,
             database_path=database_path,
             max_items=max_items,
+            task_mode=ir.mode,
         )
         ir.task_files = task_files
         ir.agentic_context_files = agentic_context_files
