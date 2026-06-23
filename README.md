@@ -122,7 +122,7 @@ pipx upgrade ccw-mcp
 `uvx`-launched clients:
 
 ```bash
-uvx --refresh ccw-mcp==0.1.12 --help
+uvx --refresh ccw-mcp==0.1.13 --help
 ```
 
 APM-based clients:
@@ -466,6 +466,13 @@ See `CONTRIBUTING.md` for contribution flow and documentation expectations.
 
 ## Public release notes
 
+- `0.1.13` — corrective version-metadata release:
+  - aligns the package runtime version and APM manifest with the published
+    distribution version
+  - supersedes `0.1.12`, whose PyPI artifacts contained stale `0.1.11`
+    runtime/APM version metadata
+  - includes the `0.1.12` docs-classification and retrieval-ranking fixes
+
 - `0.1.10` — lane-quality noise and affinity follow-up:
   - adds ranking-time build-artifact noise filtering for `build/`, `dist/`,
     and `dev-dist/` so stale artifact paths cannot leak into lanes
@@ -537,6 +544,9 @@ See `CONTRIBUTING.md` for contribution flow and documentation expectations.
   - keeps wiki log snippets tail-biased to prioritize recent project history
 
 Detailed notes:
+- `docs/releases/0.1.13.md`
+- `docs/releases/0.1.12.md`
+- `docs/releases/0.1.11.md`
 - `docs/releases/0.1.10.md`
 - `docs/releases/0.1.9.md`
 - `docs/releases/0.1.8.md`
