@@ -122,7 +122,7 @@ pipx upgrade ccw-mcp
 `uvx`-launched clients:
 
 ```bash
-uvx --refresh ccw-mcp==0.1.9 --help
+uvx --refresh ccw-mcp==0.1.10 --help
 ```
 
 APM-based clients:
@@ -459,12 +459,20 @@ management.
 python -m unittest
 ```
 
-175 tests covering CLI surfaces, compiler passes, pipeline composition, MCP
+177 tests covering CLI surfaces, compiler passes, pipeline composition, MCP
 tools, session bundle, Conductor scaffold, and the end-to-end value integration.
 
 See `CONTRIBUTING.md` for contribution flow and documentation expectations.
 
 ## Public release notes
+
+- `0.1.10` — lane-quality noise and affinity follow-up:
+  - adds ranking-time build-artifact noise filtering for `build/`, `dist/`,
+    and `dev-dist/` so stale artifact paths cannot leak into lanes
+  - improves backend-task focus with task-language inference and cross-language
+    penalties that reduce frontend TypeScript/TSX leakage in refactor tasks
+  - strengthens frontend-noise penalties for non-frontend tasks while keeping
+    deterministic, generic path-shape heuristics
 
 - `0.1.9` — lane-quality docs/refactor tuning follow-up:
   - adds a deterministic `docs` task mode and recipe, so documentation-shaped
@@ -529,6 +537,7 @@ See `CONTRIBUTING.md` for contribution flow and documentation expectations.
   - keeps wiki log snippets tail-biased to prioritize recent project history
 
 Detailed notes:
+- `docs/releases/0.1.10.md`
 - `docs/releases/0.1.9.md`
 - `docs/releases/0.1.8.md`
 - `docs/releases/0.1.7.md`

@@ -84,6 +84,12 @@ _AGENTIC_CONTEXT_EXCLUDED_SEGMENTS = frozenset({
     "node_modules",
 })
 
+_RANKING_NOISE_PATH_SEGMENTS = frozenset({
+    "build",
+    "dev-dist",
+    "dist",
+})
+
 _AGENTIC_CONTEXT_HINT_DOC_EXTENSIONS = frozenset({
     "md",
     "mdx",
@@ -228,6 +234,31 @@ _TASK_SOURCE_PATH_SEGMENTS = frozenset({
     "src",
 })
 
+_TASK_FRONTEND_PATH_SEGMENTS = frozenset({
+    "app",
+    "components",
+    "frontend",
+    "pages",
+    "ui",
+    "web",
+})
+
+_TASK_FRONTEND_HINT_TOKENS = frozenset({
+    "component",
+    "components",
+    "css",
+    "frontend",
+    "hook",
+    "hooks",
+    "jsx",
+    "page",
+    "pages",
+    "react",
+    "tailwind",
+    "tsx",
+    "ui",
+})
+
 _TASK_TEST_PATH_SEGMENTS = frozenset({
     "test",
     "tests",
@@ -292,6 +323,24 @@ _TASK_CODE_EXTENSIONS = frozenset({
     "swift",
     "ts",
     "tsx",
+})
+
+_TASK_CODE_LANGUAGES = frozenset({
+    "c",
+    "cpp",
+    "csharp",
+    "go",
+    "java",
+    "javascript",
+    "kotlin",
+    "php",
+    "python",
+    "ruby",
+    "rust",
+    "scala",
+    "shell",
+    "swift",
+    "typescript",
 })
 
 _TASK_DOC_EXTENSIONS = _AGENTIC_CONTEXT_HINT_DOC_EXTENSIONS | frozenset({
@@ -431,6 +480,59 @@ def _normalize_task_mode(task_mode: str | None) -> str:
     return task_mode.strip().lower()
 
 
+def _infer_preferred_task_language(
+    rows: list[tuple[str, str, int | None]],
+    tokens: list[str],
+    symbol_names: dict[str, list[str]],
+    docs_intent: bool,
+) -> str:
+    if docs_intent:
+        return ""
+
+    token_set = set(tokens)
+    asks_for_frontend = bool(token_set & _TASK_FRONTEND_HINT_TOKENS)
+    search_terms = _expand_task_terms(tokens)
+    signal_by_language: dict[str, float] = {}
+    for file_path, language, _ in rows:
+        normalized_path = _normalize_path(file_path)
+        parent_segments = _path_segments(normalized_path)[:-1]
+        if _is_third_party_path(normalized_path) or _is_ranking_noise_path(normalized_path):
+            continue
+        if language not in _TASK_CODE_LANGUAGES:
+            continue
+        if (
+            any(segment in _TASK_FRONTEND_PATH_SEGMENTS for segment in parent_segments)
+            and not asks_for_frontend
+        ):
+            continue
+        if _is_task_documentation_candidate(normalized_path):
+            continue
+
+        signal = float(_base_score(file_path, search_terms))
+        symbol_matches = 0
+        for symbol_name in symbol_names.get(file_path, []):
+            symbol_lower = symbol_name.lower()
+            if any(token in symbol_lower for token in search_terms):
+                symbol_matches += 1
+        signal += min(symbol_matches * 2.0, 6.0)
+
+        if signal <= 0:
+            continue
+        signal_by_language[language] = signal_by_language.get(language, 0.0) + signal
+
+    if not signal_by_language:
+        return ""
+
+    ranked = sorted(signal_by_language.items(), key=lambda item: (-item[1], item[0]))
+    top_language, top_score = ranked[0]
+    second_score = ranked[1][1] if len(ranked) > 1 else 0.0
+    if top_score < 6.0:
+        return ""
+    if second_score > 0 and top_score < (second_score * 1.3):
+        return ""
+    return top_language
+
+
 def _normalize_path(path: str) -> str:
     normalized = path.replace("\\", "/")
     while normalized.startswith("./"):
@@ -449,6 +551,11 @@ def _is_third_party_path(path: str) -> bool:
 
     segments = _path_segments(normalized)[:-1]
     return any(segment in _AGENTIC_CONTEXT_EXCLUDED_SEGMENTS for segment in segments)
+
+
+def _is_ranking_noise_path(path: str) -> bool:
+    segments = _path_segments(path)[:-1]
+    return any(segment in _RANKING_NOISE_PATH_SEGMENTS for segment in segments)
 
 
 def _is_excluded_agentic_path(path: str) -> bool:
@@ -514,12 +621,14 @@ def _default_snippet_range(file_path: str, line_count: int) -> tuple[int, int]:
 
 def _score_task_file(
     file_path: str,
+    file_language: str,
     tokens: list[str],
     file_symbols: list[str],
     last_commit_at: int | None,
     now_ts: int,
     docs_intent: bool,
     task_mode: str | None,
+    preferred_language: str,
 ) -> float:
     search_terms = _expand_task_terms(tokens)
     score = float(_base_score(file_path, search_terms))
@@ -545,6 +654,15 @@ def _score_task_file(
         elif age <= 30 * 86400:
             score += 2.0
 
+    mode = _normalize_task_mode(task_mode)
+    if (
+        preferred_language
+        and mode in {"bugfix", "implementation", "refactor"}
+        and file_language in _TASK_CODE_LANGUAGES
+        and file_language != preferred_language
+    ):
+        score -= 4.0 if mode == "refactor" else 3.0
+
     return score
 
 
@@ -562,6 +680,7 @@ def _score_task_role(file_path: str, tokens: list[str], task_mode: str | None) -
     mode = _normalize_task_mode(task_mode)
     asks_for_tests = bool(token_set & _TASK_TEST_HINT_TOKENS) or mode == "review"
     asks_for_docs = bool(token_set & _TASK_DOC_HINT_TOKENS) or mode == "docs"
+    asks_for_frontend = bool(token_set & _TASK_FRONTEND_HINT_TOKENS)
     asks_for_implementation = bool(token_set & _TASK_IMPLEMENT_HINT_TOKENS) or mode in {
         "bugfix",
         "implementation",
@@ -578,6 +697,7 @@ def _score_task_role(file_path: str, tokens: list[str], task_mode: str | None) -
         for segment in parent_segments
     )
     in_doc_tree = any(segment in _TASK_DOC_PATH_SEGMENTS for segment in parent_segments)
+    in_frontend_tree = any(segment in _TASK_FRONTEND_PATH_SEGMENTS for segment in parent_segments)
     is_doc_extension = extension in _TASK_DOC_EXTENSIONS
     looks_like_test_file = (
         (in_test_tree and not is_doc_extension)
@@ -593,6 +713,7 @@ def _score_task_role(file_path: str, tokens: list[str], task_mode: str | None) -
     )
     is_doc_file = is_doc_extension or in_doc_tree
     is_code_file = extension in _TASK_CODE_EXTENSIONS
+    looks_like_frontend_file = in_frontend_tree and extension in {"js", "jsx", "ts", "tsx"}
 
     score = 0.0
     if in_source_tree:
@@ -628,6 +749,12 @@ def _score_task_role(file_path: str, tokens: list[str], task_mode: str | None) -
             score += 2.0
         if in_source_tree:
             score -= 1.0
+
+    if looks_like_frontend_file and not asks_for_frontend:
+        if mode == "refactor":
+            score -= 8.0
+        elif mode in {"bugfix", "implementation", "docs"}:
+            score -= 3.0
 
     if stem and stem in {"index", "log", "changelog"} and asks_for_docs:
         score += 1.5
@@ -763,6 +890,12 @@ def rank_file_lanes(
     max_task_items = max(0, max_items - max_agentic_items)
 
     now_ts = int(time.time())
+    preferred_language = _infer_preferred_task_language(
+        rows=rows,
+        tokens=tokens,
+        symbol_names=symbol_names,
+        docs_intent=docs_intent,
+    )
 
     task_scored: list[tuple[float, str, str]] = []
     third_party_task_scored: list[tuple[float, str, str]] = []
@@ -770,6 +903,8 @@ def rank_file_lanes(
     agentic_scored: list[tuple[float, str, str]] = []
     for file_path, language, last_commit_at in rows:
         normalized_path = _normalize_path(file_path)
+        if _is_ranking_noise_path(normalized_path):
+            continue
         prioritize_in_task_lane = (
             (docs_intent or mode == "docs")
             and _is_task_documentation_candidate(normalized_path)
@@ -787,12 +922,14 @@ def rank_file_lanes(
 
         score = _score_task_file(
             file_path=file_path,
+            file_language=language,
             tokens=tokens,
             file_symbols=symbol_names.get(file_path, []),
             last_commit_at=last_commit_at,
             now_ts=now_ts,
             docs_intent=docs_intent,
             task_mode=mode,
+            preferred_language=preferred_language,
         )
         if _is_third_party_path(normalized_path):
             third_party_task_scored.append((score, file_path, language))

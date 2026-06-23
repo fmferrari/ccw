@@ -1098,6 +1098,109 @@ class RankFilesTests(unittest.TestCase):
             )
             self.assertIn("AGENTS.md", [rf.file_path for rf in agentic_ranked])
 
+    def test_rank_file_lanes_refactor_penalizes_cross_language_noise(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            state_dir = target / ".ccw"
+            state_dir.mkdir(parents=True, exist_ok=True)
+            (state_dir / "compiled").mkdir(parents=True, exist_ok=True)
+            (state_dir / "snapshots").mkdir(parents=True, exist_ok=True)
+            write_text(state_dir / "config.yaml", "config_version: 1\n")
+            database_path = state_dir / "index.sqlite"
+
+            with sqlite3.connect(database_path) as connection:
+                connection.executescript(
+                    """
+                    CREATE TABLE files (
+                        id INTEGER PRIMARY KEY,
+                        path TEXT NOT NULL UNIQUE,
+                        content_hash TEXT NOT NULL,
+                        size_bytes INTEGER NOT NULL,
+                        language TEXT NOT NULL,
+                        last_commit_at INTEGER
+                    );
+                    CREATE TABLE symbols (
+                        id INTEGER PRIMARY KEY,
+                        file_path TEXT NOT NULL,
+                        name TEXT NOT NULL,
+                        kind TEXT NOT NULL,
+                        line INTEGER NOT NULL,
+                        end_line INTEGER NOT NULL,
+                        export_name TEXT
+                    );
+                    INSERT INTO files (path, content_hash, size_bytes, language, last_commit_at)
+                    VALUES
+                        ('scripts/wiki_search.py', 'a', 1, 'python', NULL),
+                        ('agent/planner_schema.py', 'b', 1, 'python', NULL),
+                        ('app/src/retrieval_ranking_flow.ts', 'c', 1, 'typescript', NULL),
+                        ('app/src/ranking_placeholders.tsx', 'd', 1, 'typescript', NULL);
+                    INSERT INTO symbols (file_path, name, kind, line, end_line)
+                    VALUES
+                        ('scripts/wiki_search.py', '_score_page', 'function', 1, 10),
+                        ('scripts/wiki_search.py', '_log_retrieval_metrics', 'function', 12, 20),
+                        ('agent/planner_schema.py', 'PlannerState', 'class', 1, 20),
+                        ('app/src/retrieval_ranking_flow.ts', 'useRetrievalRankingFlow', 'function', 1, 20);
+                    """
+                )
+
+            task_ranked, _ = rank_file_lanes(
+                target=target,
+                task_description="Refactor retrieval ranking flow for clarity while preserving behavior",
+                database_path=database_path,
+                max_items=4,
+                max_agentic_items=0,
+                task_mode="refactor",
+            )
+            task_paths = [rf.file_path for rf in task_ranked]
+            self.assertIn("scripts/wiki_search.py", task_paths[:2])
+            self.assertIn("agent/planner_schema.py", task_paths[:3])
+            self.assertNotIn("app/src/retrieval_ranking_flow.ts", task_paths[:2])
+
+    def test_rank_file_lanes_excludes_build_artifact_noise_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            state_dir = target / ".ccw"
+            state_dir.mkdir(parents=True, exist_ok=True)
+            (state_dir / "compiled").mkdir(parents=True, exist_ok=True)
+            (state_dir / "snapshots").mkdir(parents=True, exist_ok=True)
+            write_text(state_dir / "config.yaml", "config_version: 1\n")
+            database_path = state_dir / "index.sqlite"
+
+            with sqlite3.connect(database_path) as connection:
+                connection.executescript(
+                    """
+                    CREATE TABLE files (
+                        id INTEGER PRIMARY KEY,
+                        path TEXT NOT NULL UNIQUE,
+                        content_hash TEXT NOT NULL,
+                        size_bytes INTEGER NOT NULL,
+                        language TEXT NOT NULL,
+                        last_commit_at INTEGER
+                    );
+                    INSERT INTO files (path, content_hash, size_bytes, language, last_commit_at)
+                    VALUES
+                        ('src/retrieval/ranker.py', 'a', 1, 'python', NULL),
+                        ('AGENTS.md', 'b', 1, 'markdown', NULL),
+                        ('app/dev-dist/runtime.js', 'c', 1, 'javascript', NULL),
+                        ('dist/bundle.js', 'd', 1, 'javascript', NULL),
+                        ('build/retrieval.js', 'e', 1, 'javascript', NULL);
+                    """
+                )
+
+            task_ranked, agentic_ranked = rank_file_lanes(
+                target=target,
+                task_description="Refactor retrieval ranking flow",
+                database_path=database_path,
+                max_items=6,
+                max_agentic_items=2,
+                task_mode="refactor",
+            )
+            all_paths = [rf.file_path for rf in [*task_ranked, *agentic_ranked]]
+            self.assertIn("src/retrieval/ranker.py", all_paths)
+            self.assertNotIn("app/dev-dist/runtime.js", all_paths)
+            self.assertNotIn("dist/bundle.js", all_paths)
+            self.assertNotIn("build/retrieval.js", all_paths)
+
     def test_rank_file_lanes_keeps_all_anchors_under_default_limit(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             target = Path(temp_dir)
