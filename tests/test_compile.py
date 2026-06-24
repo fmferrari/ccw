@@ -903,7 +903,7 @@ class RankFilesTests(unittest.TestCase):
             self.assertNotEqual(ranked_paths[0], "tests/test_service.py")
             self.assertIn("scripts/wiki_search.py", ranked_paths[:2])
 
-    def test_rank_file_lanes_docs_mode_forces_documentation_lane_priority(self) -> None:
+    def test_rank_file_lanes_docs_mode_prefers_topical_docs_not_generic_indexes(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             target = Path(temp_dir)
             state_dir = target / ".ccw"
@@ -941,13 +941,9 @@ class RankFilesTests(unittest.TestCase):
                 max_agentic_items=0,
                 task_mode="docs",
             )
-            self.assertEqual(
-                {rf.file_path for rf in task_ranked[:2]},
-                {
-                    "wiki/user/architecture/code/index.md",
-                    "wiki/user/ops/specs/retrieval-ranking.md",
-                },
-            )
+            task_paths = [rf.file_path for rf in task_ranked]
+            self.assertEqual(task_paths[0], "wiki/user/ops/specs/retrieval-ranking.md")
+            self.assertNotEqual(task_paths[0], "wiki/user/architecture/code/index.md")
 
     def test_rank_file_lanes_prioritizes_docs_for_documentation_intent(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -1000,7 +996,7 @@ class RankFilesTests(unittest.TestCase):
             self.assertIn("AGENTS.md", agentic_paths)
             self.assertNotIn("AGENTS.md", task_paths[:2])
 
-    def test_rank_file_lanes_prioritizes_architecture_and_specs_for_docs_tasks(self) -> None:
+    def test_rank_file_lanes_docs_tasks_do_not_prioritize_unrelated_architecture_and_specs(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             target = Path(temp_dir)
             state_dir = target / ".ccw"
@@ -1043,10 +1039,12 @@ class RankFilesTests(unittest.TestCase):
             self.assertEqual(
                 set(task_paths[:2]),
                 {
-                    "wiki/user/architecture/ccw-wikiagent-boundary.md",
-                    "wiki/user/ops/specs/phase-45-compiler-pipeline-spec.md",
+                    "src/retrieval/ranker.py",
+                    "tests/retrieval_benchmark.py",
                 },
             )
+            self.assertNotIn("wiki/user/architecture/ccw-wikiagent-boundary.md", task_paths[:2])
+            self.assertNotIn("wiki/user/ops/specs/phase-45-compiler-pipeline-spec.md", task_paths[:2])
             self.assertIn("AGENTS.md", [rf.file_path for rf in agentic_ranked])
 
     def test_rank_file_lanes_docs_intent_beats_dense_test_and_source_overlap(self) -> None:
@@ -1225,6 +1223,73 @@ class RankFilesTests(unittest.TestCase):
             self.assertNotIn("wiki/user/ops/specs/index.md", task_paths[:3])
             self.assertNotIn("wiki/user/ops/specs/hermes-telegram-mcp-bridge-spec.md", task_paths[:3])
 
+    def test_rank_file_lanes_docs_mode_lets_topical_source_beat_unrelated_docs(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            state_dir = target / ".ccw"
+            state_dir.mkdir(parents=True, exist_ok=True)
+            (state_dir / "compiled").mkdir(parents=True, exist_ok=True)
+            (state_dir / "snapshots").mkdir(parents=True, exist_ok=True)
+            write_text(state_dir / "config.yaml", "config_version: 1\n")
+            database_path = state_dir / "index.sqlite"
+
+            with sqlite3.connect(database_path) as connection:
+                connection.executescript(
+                    """
+                    CREATE TABLE files (
+                        id INTEGER PRIMARY KEY,
+                        path TEXT NOT NULL UNIQUE,
+                        content_hash TEXT NOT NULL,
+                        size_bytes INTEGER NOT NULL,
+                        language TEXT NOT NULL,
+                        last_commit_at INTEGER
+                    );
+                    CREATE TABLE symbols (
+                        id INTEGER PRIMARY KEY,
+                        file_path TEXT NOT NULL,
+                        name TEXT NOT NULL,
+                        kind TEXT NOT NULL,
+                        line INTEGER NOT NULL,
+                        end_line INTEGER NOT NULL,
+                        export_name TEXT
+                    );
+                    CREATE TABLE artifacts (
+                        id INTEGER PRIMARY KEY,
+                        file_path TEXT NOT NULL,
+                        kind TEXT NOT NULL,
+                        title TEXT NOT NULL,
+                        search_text TEXT NOT NULL
+                    );
+                    INSERT INTO files (path, content_hash, size_bytes, language, last_commit_at)
+                    VALUES
+                        ('wiki/user/ops/specs/hermes-telegram-mcp-bridge-spec.md', 'a', 1, 'markdown', NULL),
+                        ('wiki/user/ops/specs/hermes-first-conversation-parity-spec.md', 'b', 1, 'markdown', NULL),
+                        ('scripts/wiki_search.py', 'c', 1, 'python', NULL),
+                        ('tests/test_wiki_search.py', 'd', 1, 'python', NULL);
+                    INSERT INTO symbols (file_path, name, kind, line, end_line)
+                    VALUES
+                        ('scripts/wiki_search.py', '_score_retrieval_ranking_result', 'function', 1, 10),
+                        ('tests/test_wiki_search.py', 'test_retrieval_ranking_tie_handling', 'function', 1, 10);
+                    INSERT INTO artifacts (file_path, kind, title, search_text)
+                    VALUES
+                        ('wiki/user/ops/specs/hermes-telegram-mcp-bridge-spec.md', 'markdown', 'Hermes Telegram bridge', 'telegram transport bridge mcp'),
+                        ('wiki/user/ops/specs/hermes-first-conversation-parity-spec.md', 'markdown', 'Hermes first conversation parity', 'conversation parity telegram live session');
+                    """
+                )
+
+            task_ranked, _ = rank_file_lanes(
+                target=target,
+                task_description="Document retrieval ranking behavior and troubleshooting notes",
+                database_path=database_path,
+                max_items=4,
+                max_agentic_items=0,
+                task_mode="docs",
+            )
+
+            task_paths = [rf.file_path for rf in task_ranked]
+            self.assertEqual(task_paths[:2], ["scripts/wiki_search.py", "tests/test_wiki_search.py"])
+            self.assertNotIn("wiki/user/ops/specs/hermes-telegram-mcp-bridge-spec.md", task_paths[:2])
+
     def test_rank_file_lanes_refactor_keeps_retrieval_siblings_before_runtime_spillover(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             target = Path(temp_dir)
@@ -1285,9 +1350,72 @@ class RankFilesTests(unittest.TestCase):
 
             task_paths = [rf.file_path for rf in task_ranked]
             self.assertEqual(task_paths[0], "scripts/wiki_search.py")
-            self.assertIn("scripts/wiki_reranker.py", task_paths[:3])
-            self.assertIn("tests/test_wiki_search.py", task_paths[:4])
+            self.assertEqual(
+                set(task_paths[:3]),
+                {"scripts/wiki_search.py", "scripts/wiki_reranker.py", "tests/test_wiki_search.py"},
+            )
+            self.assertNotIn("agent/track_behavior.py", task_paths[:3])
             self.assertNotIn("agent/mcp_server.py", task_paths[:4])
+
+    def test_rank_file_lanes_test_mode_focused_tests_beat_broad_tests(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            state_dir = target / ".ccw"
+            state_dir.mkdir(parents=True, exist_ok=True)
+            (state_dir / "compiled").mkdir(parents=True, exist_ok=True)
+            (state_dir / "snapshots").mkdir(parents=True, exist_ok=True)
+            write_text(state_dir / "config.yaml", "config_version: 1\n")
+            database_path = state_dir / "index.sqlite"
+
+            with sqlite3.connect(database_path) as connection:
+                connection.executescript(
+                    """
+                    CREATE TABLE files (
+                        id INTEGER PRIMARY KEY,
+                        path TEXT NOT NULL UNIQUE,
+                        content_hash TEXT NOT NULL,
+                        size_bytes INTEGER NOT NULL,
+                        language TEXT NOT NULL,
+                        last_commit_at INTEGER
+                    );
+                    CREATE TABLE symbols (
+                        id INTEGER PRIMARY KEY,
+                        file_path TEXT NOT NULL,
+                        name TEXT NOT NULL,
+                        kind TEXT NOT NULL,
+                        line INTEGER NOT NULL,
+                        end_line INTEGER NOT NULL,
+                        export_name TEXT
+                    );
+                    INSERT INTO files (path, content_hash, size_bytes, language, last_commit_at)
+                    VALUES
+                        ('tests/test_service.py', 'a', 1, 'python', NULL),
+                        ('tests/test_access_policy.py', 'b', 1, 'python', NULL),
+                        ('tests/test_wiki_search.py', 'c', 1, 'python', NULL),
+                        ('tests/retrieval_benchmark.py', 'd', 1, 'python', NULL),
+                        ('scripts/wiki_search.py', 'e', 1, 'python', NULL);
+                    INSERT INTO symbols (file_path, name, kind, line, end_line)
+                    VALUES
+                        ('tests/test_service.py', 'test_service_smoke', 'function', 1, 10),
+                        ('tests/test_access_policy.py', 'test_access_policy_smoke', 'function', 1, 10),
+                        ('tests/test_wiki_search.py', 'test_retrieval_ranking_stability_tie_handling', 'function', 1, 10),
+                        ('tests/retrieval_benchmark.py', 'test_retrieval_ranking_benchmark', 'function', 1, 10),
+                        ('scripts/wiki_search.py', '_score_retrieval_ranking_result', 'function', 1, 10);
+                    """
+                )
+
+            task_ranked, _ = rank_file_lanes(
+                target=target,
+                task_description="Add regression tests for retrieval ranking stability and tie handling",
+                database_path=database_path,
+                max_items=5,
+                max_agentic_items=0,
+                task_mode="implementation",
+            )
+
+            task_paths = [rf.file_path for rf in task_ranked]
+            self.assertEqual(set(task_paths[:2]), {"tests/test_wiki_search.py", "tests/retrieval_benchmark.py"})
+            self.assertNotIn("tests/test_service.py", task_paths[:2])
 
     def test_explain_task_file_score_reports_deterministic_feature_buckets(self) -> None:
         score = explain_task_file_score(

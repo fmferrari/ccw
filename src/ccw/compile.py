@@ -509,6 +509,39 @@ def _path_match_feature_scores(path: str, tokens: list[str]) -> tuple[float, flo
     return (lexical, alias)
 
 
+def _term_variants(token: str) -> set[str]:
+    variants = {token}
+    if token.endswith("ing") and len(token) > 5:
+        variants.add(token[:-3])
+    if token.endswith("ed") and len(token) > 4:
+        variants.add(token[:-2])
+    if token.endswith("er") and len(token) > 4:
+        variants.add(token[:-2])
+    if token.endswith("s") and len(token) > 3:
+        variants.add(token[:-1])
+    if token == "ranking":
+        variants.update({"rank", "rerank", "reranker"})
+    if token == "rank":
+        variants.update({"ranking", "rerank", "reranker"})
+    if token == "retrieval":
+        variants.add("retrieve")
+    if token == "troubleshooting":
+        variants.update({"troubleshoot", "troubleshooter"})
+    return {variant for variant in variants if len(variant) > 2}
+
+
+def _morphological_task_terms(tokens: list[str]) -> set[str]:
+    terms: set[str] = set()
+    for token in tokens:
+        terms.update(_term_variants(token))
+    return terms
+
+
+def _term_matches_symbol(term: str, symbol_name: str) -> bool:
+    components = _path_tokens(symbol_name.lower())
+    return any(term == component or _fuzzy_prefix_match(term, component) for component in components)
+
+
 def _expand_task_terms(tokens: list[str]) -> list[str]:
     expanded: list[str] = []
     seen: set[str] = set()
@@ -577,8 +610,7 @@ def _infer_preferred_task_language(
         signal = float(_base_score(file_path, search_terms))
         symbol_matches = 0
         for symbol_name in symbol_names.get(file_path, []):
-            symbol_lower = symbol_name.lower()
-            if any(token in symbol_lower for token in search_terms):
+            if any(_term_matches_symbol(token, symbol_name) for token in search_terms):
                 symbol_matches += 1
         signal += min(symbol_matches * 2.0, 6.0)
 
@@ -609,6 +641,24 @@ def _infer_locality_anchor_terms(
         return set()
 
     search_terms = _expand_task_terms(tokens)
+    focus_terms = [
+        term
+        for term in search_terms
+        if term
+        not in {
+            "behavior",
+            "behaviour",
+            "clarify",
+            "clarity",
+            "cleanup",
+            "flow",
+            "preserve",
+            "preserving",
+            "refactor",
+            "restructure",
+            "simplify",
+        }
+    ]
     token_set = set(tokens)
     asks_for_frontend = bool(token_set & _TASK_FRONTEND_HINT_TOKENS)
     candidates: list[tuple[float, str]] = []
@@ -616,6 +666,8 @@ def _infer_locality_anchor_terms(
         normalized = _normalize_path(file_path)
         parent_segments = _path_segments(normalized)[:-1]
         if _is_third_party_path(normalized) or _is_ranking_noise_path(normalized):
+            continue
+        if _looks_like_test_path(normalized):
             continue
         if language not in _TASK_CODE_LANGUAGES:
             continue
@@ -625,13 +677,17 @@ def _infer_locality_anchor_terms(
         ):
             continue
         path_score = float(_base_score(file_path, search_terms))
+        focus_path_score = float(_base_score(file_path, focus_terms))
         symbol_score = 0.0
+        focus_symbol_score = 0.0
         for symbol_name in symbol_names.get(file_path, []):
-            symbol_lower = symbol_name.lower()
-            if any(term in symbol_lower for term in search_terms):
+            if any(_term_matches_symbol(term, symbol_name) for term in search_terms):
                 symbol_score += 2.0
+            if any(_term_matches_symbol(term, symbol_name) for term in focus_terms):
+                focus_symbol_score += 2.0
         signal = path_score + min(symbol_score, 8.0)
-        if signal >= 5.0:
+        focus_signal = focus_path_score + min(focus_symbol_score, 8.0)
+        if signal >= 5.0 and focus_signal > 0:
             candidates.append((signal, file_path))
 
     if not candidates:
@@ -680,6 +736,18 @@ def _is_third_party_path(path: str) -> bool:
 def _is_ranking_noise_path(path: str) -> bool:
     segments = _path_segments(path)[:-1]
     return any(segment in _RANKING_NOISE_PATH_SEGMENTS for segment in segments)
+
+
+def _is_task_evidence_noise_path(path: str) -> bool:
+    normalized = _normalize_path(path).lower()
+    segments = _path_segments(normalized)
+    if any(segment in {".obsidian", ".vscode"} for segment in segments[:-1]):
+        return True
+    basename = normalized.rsplit("/", 1)[-1]
+    if basename.startswith(".env") or basename in {"docker-compose.yml", "package-lock.json", "yarn.lock", "pnpm-lock.yaml"}:
+        return True
+    stem, dot, extension = basename.rpartition(".")
+    return bool(dot and extension in {"gif", "ico", "jpeg", "jpg", "lock", "png", "svg", "webp"})
 
 
 def _is_excluded_agentic_path(path: str) -> bool:
@@ -852,17 +920,40 @@ def explain_task_file_score(
     search_terms = _expand_task_terms(tokens)
     features["topicality"] = _topicality_score(
         file_path=file_path,
+        tokens=tokens,
         search_terms=search_terms,
         topical_text=topical_text,
-        docs_intent=docs_intent,
-        task_mode=task_mode,
     )
 
     symbol_boost = 0.0
+    weak_symbol_terms = {
+        "add",
+        "behavior",
+        "behaviour",
+        "case",
+        "cases",
+        "clarity",
+        "doc",
+        "docs",
+        "document",
+        "documentation",
+        "flow",
+        "note",
+        "notes",
+        "preserve",
+        "preserving",
+        "regression",
+        "test",
+        "tests",
+    }
+    symbol_terms_set: set[str] = set()
+    for token in tokens:
+        if token not in weak_symbol_terms:
+            symbol_terms_set.update(_term_variants(token))
+    symbol_terms = sorted(symbol_terms_set)
     for symbol_name in file_symbols:
-        symbol_lower = symbol_name.lower()
-        for token in search_terms:
-            if token in symbol_lower:
+        for token in symbol_terms:
+            if _term_matches_symbol(token, symbol_name):
                 symbol_boost += 2.0
                 break
     features["symbol"] = min(symbol_boost, 8.0)
@@ -918,24 +1009,62 @@ def _generic_document_penalty(
 
 def _topicality_score(
     file_path: str,
+    tokens: list[str],
     search_terms: list[str],
     topical_text: str,
-    docs_intent: bool,
-    task_mode: str | None,
 ) -> float:
-    mode = _normalize_task_mode(task_mode)
-    if not docs_intent and mode != "docs":
-        return 0.0
-    if not _is_task_documentation_candidate(file_path):
-        return 0.0
-
-    normalized_terms = {term.lower() for term in search_terms if len(term) > 2}
+    weak_terms = {
+        "behavior",
+        "behaviour",
+        "clarity",
+        "doc",
+        "docs",
+        "document",
+        "documentation",
+        "flow",
+        "note",
+        "notes",
+        "preserve",
+        "preserving",
+        "regression",
+        "test",
+        "tests",
+    }
+    strong_exact_terms = {token.lower() for token in tokens if len(token) > 2 and token.lower() not in weak_terms}
+    exact_terms = strong_exact_terms or {token.lower() for token in tokens if len(token) > 2}
+    morph_terms: set[str] = set()
+    for token in tokens:
+        if token.lower() not in weak_terms:
+            morph_terms.update(_term_variants(token.lower()))
+    weak_synonyms = weak_terms | {"guide", "guides", "spec", "specs", "wiki"}
+    synonym_terms = {
+        term.lower()
+        for term in search_terms
+        if len(term) > 2
+        and term.lower() not in exact_terms
+        and term.lower() not in morph_terms
+        and term.lower() not in weak_synonyms
+    }
     path_terms = _path_term_set(file_path)
     text_terms = set(_tokenize(topical_text)) if topical_text else set()
+    evidence_terms = path_terms | text_terms
 
-    path_matches = len(normalized_terms & path_terms)
-    text_matches = len(normalized_terms & text_terms)
-    return min((path_matches * 2.0) + (text_matches * 1.5), 18.0)
+    exact_path_matches = len(exact_terms & path_terms)
+    exact_text_matches = len(exact_terms & text_terms)
+    morph_matches = len((morph_terms - exact_terms) & evidence_terms)
+    synonym_matches = len(synonym_terms & evidence_terms)
+    cooccurrence_boost = 0.0
+    if len(exact_terms & evidence_terms) >= 2:
+        cooccurrence_boost = 4.0
+
+    return min(
+        (exact_path_matches * 3.0)
+        + (exact_text_matches * 2.0)
+        + (morph_matches * 2.0)
+        + min(synonym_matches * 1.0, 4.0)
+        + cooccurrence_boost,
+        28.0,
+    )
 
 
 def _locality_score(
@@ -961,6 +1090,96 @@ def _locality_score(
     if any(segment in _TASK_TEST_PATH_SEGMENTS for segment in parent_segments) and len(shared) >= 2:
         boost += 12.0
     return min(boost, 18.0)
+
+
+def _topical_component(score: RankingScore) -> float:
+    return (
+        score.features.get("lexical", 0.0)
+        + min(score.features.get("alias", 0.0), 4.0)
+        + score.features.get("topicality", 0.0)
+        + score.features.get("symbol", 0.0)
+        + score.features.get("locality", 0.0)
+    )
+
+
+def _looks_like_test_path(file_path: str) -> bool:
+    normalized = _normalize_path(file_path)
+    segments = _path_segments(normalized)
+    if not segments:
+        return False
+    basename = segments[-1]
+    parent_segments = segments[:-1]
+    return (
+        any(segment in _TASK_TEST_PATH_SEGMENTS for segment in parent_segments)
+        or basename.startswith("test_")
+        or basename.endswith("_test.py")
+        or ".test." in basename
+        or ".spec." in basename
+    )
+
+
+def _is_code_path(file_path: str) -> bool:
+    basename = _path_segments(file_path)[-1] if _path_segments(file_path) else ""
+    stem, dot, extension = basename.rpartition(".")
+    return bool(dot and extension.lower() in _TASK_CODE_EXTENSIONS)
+
+
+def _apply_topicality_gate(
+    score: RankingScore,
+    file_path: str,
+    tokens: list[str],
+    task_mode: str | None,
+    best_topical: float,
+) -> float:
+    mode = _normalize_task_mode(task_mode)
+    token_set = set(tokens)
+    asks_for_tests = bool(token_set & _TASK_TEST_HINT_TOKENS) or mode == "review"
+    asks_for_docs = bool(token_set & _TASK_DOC_HINT_TOKENS) or mode == "docs"
+    asks_for_refactor = bool(token_set & _TASK_REFACTOR_HINT_TOKENS) or mode == "refactor"
+    topical = _topical_component(score)
+    if best_topical < 5.0:
+        return score.total
+
+    if asks_for_docs and _is_task_documentation_candidate(file_path):
+        primary_topical = (
+            score.features.get("lexical", 0.0)
+            + score.features.get("topicality", 0.0)
+            + score.features.get("symbol", 0.0)
+        )
+        if (
+            score.features.get("lexical", 0.0) <= 0.0
+            and primary_topical < 12.0
+            and primary_topical < (best_topical * 0.9)
+        ):
+            return score.total - 45.0
+
+    if asks_for_docs and not _is_task_documentation_candidate(file_path) and topical >= 8.0:
+        return score.total + 4.0
+
+    if asks_for_refactor and _is_task_documentation_candidate(file_path):
+        return score.total - 24.0
+
+    if asks_for_refactor and any(segment in _TASK_FRONTEND_PATH_SEGMENTS for segment in _path_segments(file_path)[:-1]):
+        return score.total - 50.0
+
+    below_floor = topical < 8.0
+    far_from_best = topical < (best_topical * 0.45)
+    if not below_floor and not far_from_best:
+        return score.total
+
+    gated_lane_shape = False
+    if asks_for_docs and _is_task_documentation_candidate(file_path):
+        gated_lane_shape = True
+    elif asks_for_tests and _looks_like_test_path(file_path):
+        gated_lane_shape = True
+    elif asks_for_refactor and _is_code_path(file_path):
+        gated_lane_shape = True
+
+    if not gated_lane_shape:
+        return score.total
+
+    penalty = 35.0 if asks_for_docs and _is_task_documentation_candidate(file_path) else 16.0
+    return score.total - penalty
 
 
 def _score_task_role(file_path: str, tokens: list[str], task_mode: str | None) -> float:
@@ -1084,6 +1303,8 @@ def _is_task_documentation_candidate(file_path: str) -> bool:
 
     stem, dot, extension = basename.rpartition(".")
     extension = extension.lower() if dot else ""
+    if extension in _TASK_CODE_EXTENSIONS:
+        return False
 
     in_doc_tree = any(segment in _TASK_DOC_PATH_SEGMENTS for segment in parent_segments)
     has_spec_name = "spec" in stem or "specification" in stem
@@ -1195,20 +1416,20 @@ def rank_file_lanes(
         symbol_names=symbol_names,
         docs_intent=docs_intent,
     )
+    refactor_for_ranking = mode == "refactor" or bool(set(tokens) & _TASK_REFACTOR_HINT_TOKENS)
     locality_anchor_terms = _infer_locality_anchor_terms(
         rows=rows,
         tokens=tokens,
         symbol_names=symbol_names,
-        task_mode=mode,
+        task_mode="refactor" if refactor_for_ranking else mode,
     )
 
-    task_scored: list[tuple[float, str, str]] = []
-    third_party_task_scored: list[tuple[float, str, str]] = []
+    task_score_details: list[tuple[RankingScore, str, str, bool]] = []
     agentic_anchor_scored: list[tuple[float, str, str]] = []
     agentic_scored: list[tuple[float, str, str]] = []
     for file_path, language, last_commit_at in rows:
         normalized_path = _normalize_path(file_path)
-        if _is_ranking_noise_path(normalized_path):
+        if _is_ranking_noise_path(normalized_path) or _is_task_evidence_noise_path(normalized_path):
             continue
         prioritize_in_task_lane = (
             (docs_intent or mode == "docs")
@@ -1223,13 +1444,19 @@ def rank_file_lanes(
                 agentic_scored.append((agentic_score, file_path, language))
             continue
 
+        if (
+            any(segment in _TASK_DOC_CANDIDATE_EXCLUDED_SEGMENTS for segment in _path_segments(normalized_path)[:-1])
+            and not _is_pinned_agentic_anchor_path(normalized_path)
+        ):
+            continue
+
         if max_task_items == 0:
             continue
 
-        score = _score_task_file(
+        score = explain_task_file_score(
             file_path=file_path,
             file_language=language,
-            tokens=tokens,
+            task_description=task_description,
             file_symbols=symbol_names.get(file_path, []),
             last_commit_at=last_commit_at,
             now_ts=now_ts,
@@ -1239,10 +1466,58 @@ def rank_file_lanes(
             topical_text=artifact_search_text.get(file_path, ""),
             locality_anchor_terms=locality_anchor_terms,
         )
-        if _is_third_party_path(normalized_path):
-            third_party_task_scored.append((score, file_path, language))
+        task_score_details.append((score, file_path, language, _is_third_party_path(normalized_path)))
+
+    best_topical = max((_topical_component(score) for score, _, _, _ in task_score_details), default=0.0)
+    adjusted_task_details: list[tuple[float, str, str, bool]] = []
+    for score, file_path, language, is_third_party in task_score_details:
+        final_score = _apply_topicality_gate(
+            score=score,
+            file_path=file_path,
+            tokens=tokens,
+            task_mode=mode,
+            best_topical=best_topical,
+        )
+        adjusted_task_details.append((final_score, file_path, language, is_third_party))
+
+    if refactor_for_ranking:
+        preferred_code_scores = [
+            final_score
+            for final_score, file_path, language, is_third_party in adjusted_task_details
+            if not is_third_party
+            and not _looks_like_test_path(file_path)
+            and _is_code_path(file_path)
+            and not any(segment in _TASK_FRONTEND_PATH_SEGMENTS for segment in _path_segments(file_path)[:-1])
+            and (not preferred_language or language == preferred_language)
+        ]
+        best_preferred_code_score = max(preferred_code_scores, default=None)
+        if best_preferred_code_score is not None:
+            capped_details: list[tuple[float, str, str, bool]] = []
+            for final_score, file_path, language, is_third_party in adjusted_task_details:
+                if _looks_like_test_path(file_path) and final_score >= best_preferred_code_score:
+                    final_score = best_preferred_code_score - 0.5
+                elif (
+                    _is_code_path(file_path)
+                    and any(segment in _TASK_FRONTEND_PATH_SEGMENTS for segment in _path_segments(file_path)[:-1])
+                ):
+                    final_score = min(final_score, best_preferred_code_score - 50.0)
+                elif (
+                    _is_code_path(file_path)
+                    and preferred_language
+                    and language != preferred_language
+                    and final_score >= best_preferred_code_score - 1.0
+                ):
+                    final_score = best_preferred_code_score - 6.0
+                capped_details.append((final_score, file_path, language, is_third_party))
+            adjusted_task_details = capped_details
+
+    task_scored: list[tuple[float, str, str]] = []
+    third_party_task_scored: list[tuple[float, str, str]] = []
+    for final_score, file_path, language, is_third_party in adjusted_task_details:
+        if is_third_party:
+            third_party_task_scored.append((final_score, file_path, language))
         else:
-            task_scored.append((score, file_path, language))
+            task_scored.append((final_score, file_path, language))
 
     task_scored.sort(key=lambda x: (-x[0], x[1]))
     third_party_task_scored.sort(key=lambda x: (-x[0], x[1]))

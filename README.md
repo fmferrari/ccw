@@ -122,7 +122,7 @@ pipx upgrade ccw-mcp
 `uvx`-launched clients:
 
 ```bash
-uvx --refresh ccw-mcp==0.1.15 --help
+uvx --refresh ccw-mcp==0.1.16 --help
 ```
 
 APM-based clients:
@@ -459,12 +459,21 @@ management.
 python -m unittest
 ```
 
-183 tests covering CLI surfaces, compiler passes, pipeline composition, MCP
+185 tests covering CLI surfaces, compiler passes, pipeline composition, MCP
 tools, session bundle, Conductor scaffold, and the end-to-end value integration.
 
 See `CONTRIBUTING.md` for contribution flow and documentation expectations.
 
 ## Public release notes
+
+- `0.1.16` — deterministic topical relevance scoring:
+  - makes topical relevance dominate lane-shape priors so unrelated docs/specs
+    cannot lead docs-mode retrieval/ranking tasks merely because they are docs
+  - lets strongly topical source/tests outrank weak docs when no topical docs
+    exist, while topical docs still lead when present
+  - tightens refactor ranking so preferred source remains ahead of tests and
+    frontend/cross-language noise for non-frontend refactor tasks
+  - strengthens focused test ranking for retrieval/ranking/tie prompts
 
 - `0.1.15` — deterministic ranking topicality guardrails:
   - adds docs-mode topicality scoring so docs-shaped tasks lead with docs that
@@ -565,6 +574,7 @@ See `CONTRIBUTING.md` for contribution flow and documentation expectations.
   - keeps wiki log snippets tail-biased to prioritize recent project history
 
 Detailed notes:
+- `docs/releases/0.1.16.md`
 - `docs/releases/0.1.15.md`
 - `docs/releases/0.1.14.md`
 - `docs/releases/0.1.13.md`

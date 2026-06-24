@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ccw-mcp"
-version = "0.1.15"
+version = "0.1.16"
 description = "Deterministic context compiler for small-window coding models"
 readme = "README.md"
 requires-python = ">=3.11"
