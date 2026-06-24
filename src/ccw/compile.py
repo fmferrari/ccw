@@ -222,10 +222,11 @@ _TASK_REFACTOR_HINT_TOKENS = frozenset({
 _TASK_KEYWORD_ALIASES: dict[str, frozenset[str]] = {
     "document": frozenset({"doc", "wiki", "spec", "guide"}),
     "documentation": frozenset({"doc", "wiki", "spec", "guide"}),
-    "retrieval": frozenset({"lookup", "planner", "query", "router", "search"}),
+    "retrieval": frozenset({"lookup", "query", "router", "search"}),
     "search": frozenset({"query", "lookup", "retrieval"}),
     "ranking": frozenset({"order", "ordering", "rank", "score", "sort", "tie"}),
-    "rank": frozenset({"score", "order", "sort", "tie"}),
+    "rank": frozenset({"rerank", "reranker", "score", "order", "sort", "tie"}),
+    "rerank": frozenset({"rank", "ranking", "score", "order", "sort"}),
     "troubleshooting": frozenset({"debug", "diagnostic", "runbook"}),
 }
 
@@ -416,6 +417,12 @@ class RankedFile:
 
 
 @dataclass(frozen=True)
+class RankingScore:
+    total: float
+    features: dict[str, float]
+
+
+@dataclass(frozen=True)
 class ContextSection:
     name: str
     items: tuple[RankedFile | str, ...] = ()
@@ -468,6 +475,40 @@ def _base_score(path: str, tokens: list[str]) -> int:
     return score
 
 
+def _path_term_set(path: str) -> set[str]:
+    terms: set[str] = set()
+    for component in re.findall(r"[a-zA-Z0-9_]+", _normalize_path(path).lower()):
+        terms.add(component)
+        for part in component.split("_"):
+            if part:
+                terms.add(part)
+    return terms
+
+
+def _path_match_feature_scores(path: str, tokens: list[str]) -> tuple[float, float]:
+    components = _path_tokens(path)
+    lexical = 0.0
+    alias = 0.0
+    for token in tokens:
+        matched_token = False
+        for comp in components:
+            if token == comp or _fuzzy_prefix_match(token, comp):
+                lexical += 3.0
+                matched_token = True
+                break
+        if matched_token:
+            continue
+        for alias_token in _TASK_KEYWORD_ALIASES.get(token, ()):
+            for comp in components:
+                if alias_token == comp or _fuzzy_prefix_match(alias_token, comp):
+                    alias += 3.0
+                    matched_token = True
+                    break
+            if matched_token:
+                break
+    return (lexical, alias)
+
+
 def _expand_task_terms(tokens: list[str]) -> list[str]:
     expanded: list[str] = []
     seen: set[str] = set()
@@ -482,6 +523,21 @@ def _expand_task_terms(tokens: list[str]) -> list[str]:
             seen.add(alias)
             expanded.append(alias)
     return expanded
+
+
+def _load_artifact_search_text(database_path: Path) -> dict[str, str]:
+    try:
+        with sqlite3.connect(database_path) as connection:
+            rows = connection.execute(
+                "SELECT file_path, title, search_text FROM artifacts"
+            ).fetchall()
+    except sqlite3.Error:
+        return {}
+
+    text_by_path: dict[str, str] = {}
+    for file_path, title, search_text in rows:
+        text_by_path[file_path] = f"{title or ''} {search_text or ''}".strip()
+    return text_by_path
 
 
 def _normalize_task_mode(task_mode: str | None) -> str:
@@ -541,6 +597,64 @@ def _infer_preferred_task_language(
     if second_score > 0 and top_score < (second_score * 1.3):
         return ""
     return top_language
+
+
+def _infer_locality_anchor_terms(
+    rows: list[tuple[str, str, int | None]],
+    tokens: list[str],
+    symbol_names: dict[str, list[str]],
+    task_mode: str | None,
+) -> set[str]:
+    if _normalize_task_mode(task_mode) != "refactor":
+        return set()
+
+    search_terms = _expand_task_terms(tokens)
+    token_set = set(tokens)
+    asks_for_frontend = bool(token_set & _TASK_FRONTEND_HINT_TOKENS)
+    candidates: list[tuple[float, str]] = []
+    for file_path, language, _ in rows:
+        normalized = _normalize_path(file_path)
+        parent_segments = _path_segments(normalized)[:-1]
+        if _is_third_party_path(normalized) or _is_ranking_noise_path(normalized):
+            continue
+        if language not in _TASK_CODE_LANGUAGES:
+            continue
+        if (
+            any(segment in _TASK_FRONTEND_PATH_SEGMENTS for segment in parent_segments)
+            and not asks_for_frontend
+        ):
+            continue
+        path_score = float(_base_score(file_path, search_terms))
+        symbol_score = 0.0
+        for symbol_name in symbol_names.get(file_path, []):
+            symbol_lower = symbol_name.lower()
+            if any(term in symbol_lower for term in search_terms):
+                symbol_score += 2.0
+        signal = path_score + min(symbol_score, 8.0)
+        if signal >= 5.0:
+            candidates.append((signal, file_path))
+
+    if not candidates:
+        return set()
+
+    candidates.sort(key=lambda item: (-item[0], item[1]))
+    anchor_terms: set[str] = set()
+    common_terms = {
+        "app",
+        "file",
+        "js",
+        "jsx",
+        "md",
+        "py",
+        "src",
+        "test",
+        "tests",
+        "ts",
+        "tsx",
+    }
+    for _, file_path in candidates[:2]:
+        anchor_terms.update(_path_term_set(file_path) - common_terms)
+    return anchor_terms
 
 
 def _normalize_path(path: str) -> str:
@@ -674,15 +788,76 @@ def _score_task_file(
     docs_intent: bool,
     task_mode: str | None,
     preferred_language: str,
+    topical_text: str = "",
+    locality_anchor_terms: set[str] | None = None,
 ) -> float:
-    search_terms = _expand_task_terms(tokens)
-    score = float(_base_score(file_path, search_terms))
-    score += _score_task_role(file_path=file_path, tokens=tokens, task_mode=task_mode)
-    score += _documentation_intent_file_boost(
+    return explain_task_file_score(
+        file_path=file_path,
+        file_language=file_language,
+        task_description=" ".join(tokens),
+        file_symbols=file_symbols,
+        last_commit_at=last_commit_at,
+        task_mode=task_mode,
+        preferred_language=preferred_language,
+        now_ts=now_ts,
+        docs_intent=docs_intent,
+        topical_text=topical_text,
+        locality_anchor_terms=locality_anchor_terms,
+    ).total
+
+
+def explain_task_file_score(
+    file_path: str,
+    file_language: str,
+    task_description: str,
+    file_symbols: tuple[str, ...] | list[str] = (),
+    last_commit_at: int | None = None,
+    task_mode: str | None = None,
+    preferred_language: str = "",
+    now_ts: int | None = None,
+    docs_intent: bool | None = None,
+    topical_text: str = "",
+    locality_anchor_terms: set[str] | None = None,
+) -> RankingScore:
+    tokens = _tokenize(task_description)
+    if docs_intent is None:
+        docs_intent = _has_documentation_intent(tokens) or _normalize_task_mode(task_mode) == "docs"
+    if now_ts is None:
+        now_ts = int(time.time())
+
+    features = {
+        "lexical": 0.0,
+        "alias": 0.0,
+        "role": 0.0,
+        "document_shape": 0.0,
+        "topicality": 0.0,
+        "symbol": 0.0,
+        "freshness": 0.0,
+        "language_penalty": 0.0,
+        "generic_index_penalty": 0.0,
+        "locality": 0.0,
+        "artifact_penalty": 0.0,
+    }
+
+    lexical, alias = _path_match_feature_scores(file_path, tokens)
+    features["lexical"] = lexical
+    features["alias"] = alias
+    features["role"] = _score_task_role(file_path=file_path, tokens=tokens, task_mode=task_mode)
+    features["document_shape"] = _documentation_intent_file_boost(
         file_path=file_path,
         docs_intent=docs_intent,
         task_mode=task_mode,
     )
+
+    search_terms = _expand_task_terms(tokens)
+    features["topicality"] = _topicality_score(
+        file_path=file_path,
+        search_terms=search_terms,
+        topical_text=topical_text,
+        docs_intent=docs_intent,
+        task_mode=task_mode,
+    )
+
     symbol_boost = 0.0
     for symbol_name in file_symbols:
         symbol_lower = symbol_name.lower()
@@ -690,14 +865,14 @@ def _score_task_file(
             if token in symbol_lower:
                 symbol_boost += 2.0
                 break
-    score += min(symbol_boost, 8.0)
+    features["symbol"] = min(symbol_boost, 8.0)
 
     if last_commit_at is not None:
         age = now_ts - last_commit_at
         if age <= 7 * 86400:
-            score += 5.0
+            features["freshness"] = 5.0
         elif age <= 30 * 86400:
-            score += 2.0
+            features["freshness"] = 2.0
 
     mode = _normalize_task_mode(task_mode)
     if (
@@ -706,9 +881,86 @@ def _score_task_file(
         and file_language in _TASK_CODE_LANGUAGES
         and file_language != preferred_language
     ):
-        score -= 4.0 if mode == "refactor" else 3.0
+        features["language_penalty"] = -4.0 if mode == "refactor" else -3.0
 
-    return score
+    features["generic_index_penalty"] = _generic_document_penalty(
+        file_path=file_path,
+        docs_intent=docs_intent,
+        task_mode=task_mode,
+    )
+    features["locality"] = _locality_score(
+        file_path=file_path,
+        task_mode=task_mode,
+        locality_anchor_terms=locality_anchor_terms,
+    )
+
+    total = sum(features.values())
+    return RankingScore(total=total, features=features)
+
+
+def _generic_document_penalty(
+    file_path: str,
+    docs_intent: bool,
+    task_mode: str | None,
+) -> float:
+    mode = _normalize_task_mode(task_mode)
+    if not docs_intent and mode != "docs":
+        return 0.0
+    normalized = _normalize_path(file_path)
+    if not _is_task_documentation_candidate(normalized):
+        return 0.0
+    basename = _path_segments(normalized)[-1]
+    stem = basename.rsplit(".", 1)[0]
+    if stem in {"index", "log", "changelog"}:
+        return -12.0
+    return 0.0
+
+
+def _topicality_score(
+    file_path: str,
+    search_terms: list[str],
+    topical_text: str,
+    docs_intent: bool,
+    task_mode: str | None,
+) -> float:
+    mode = _normalize_task_mode(task_mode)
+    if not docs_intent and mode != "docs":
+        return 0.0
+    if not _is_task_documentation_candidate(file_path):
+        return 0.0
+
+    normalized_terms = {term.lower() for term in search_terms if len(term) > 2}
+    path_terms = _path_term_set(file_path)
+    text_terms = set(_tokenize(topical_text)) if topical_text else set()
+
+    path_matches = len(normalized_terms & path_terms)
+    text_matches = len(normalized_terms & text_terms)
+    return min((path_matches * 2.0) + (text_matches * 1.5), 18.0)
+
+
+def _locality_score(
+    file_path: str,
+    task_mode: str | None,
+    locality_anchor_terms: set[str] | None,
+) -> float:
+    if _normalize_task_mode(task_mode) != "refactor" or not locality_anchor_terms:
+        return 0.0
+    normalized = _normalize_path(file_path)
+    if _is_third_party_path(normalized) or _is_ranking_noise_path(normalized):
+        return 0.0
+
+    path_terms = _path_term_set(normalized)
+    shared = path_terms & locality_anchor_terms
+    if not shared:
+        return 0.0
+
+    parent_segments = _path_segments(normalized)[:-1]
+    boost = min(len(shared) * 1.5, 6.0)
+    if parent_segments and parent_segments[-1] in locality_anchor_terms:
+        boost += 2.0
+    if any(segment in _TASK_TEST_PATH_SEGMENTS for segment in parent_segments) and len(shared) >= 2:
+        boost += 12.0
+    return min(boost, 18.0)
 
 
 def _score_task_role(file_path: str, tokens: list[str], task_mode: str | None) -> float:
@@ -797,7 +1049,7 @@ def _score_task_role(file_path: str, tokens: list[str], task_mode: str | None) -
 
     if looks_like_frontend_file and not asks_for_frontend:
         if mode == "refactor":
-            score -= 8.0
+            score -= 14.0
         elif mode in {"bugfix", "implementation", "docs"}:
             score -= 3.0
 
@@ -928,6 +1180,8 @@ def rank_file_lanes(
     except sqlite3.Error:
         pass
 
+    artifact_search_text = _load_artifact_search_text(database_path)
+
     uses_default_agentic_limit = max_agentic_items is None
     if uses_default_agentic_limit:
         max_agentic_items = _agentic_lane_item_limit(max_items)
@@ -940,6 +1194,12 @@ def rank_file_lanes(
         tokens=tokens,
         symbol_names=symbol_names,
         docs_intent=docs_intent,
+    )
+    locality_anchor_terms = _infer_locality_anchor_terms(
+        rows=rows,
+        tokens=tokens,
+        symbol_names=symbol_names,
+        task_mode=mode,
     )
 
     task_scored: list[tuple[float, str, str]] = []
@@ -976,6 +1236,8 @@ def rank_file_lanes(
             docs_intent=docs_intent,
             task_mode=mode,
             preferred_language=preferred_language,
+            topical_text=artifact_search_text.get(file_path, ""),
+            locality_anchor_terms=locality_anchor_terms,
         )
         if _is_third_party_path(normalized_path):
             third_party_task_scored.append((score, file_path, language))

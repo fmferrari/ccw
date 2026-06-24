@@ -122,7 +122,7 @@ pipx upgrade ccw-mcp
 `uvx`-launched clients:
 
 ```bash
-uvx --refresh ccw-mcp==0.1.14 --help
+uvx --refresh ccw-mcp==0.1.15 --help
 ```
 
 APM-based clients:
@@ -459,12 +459,24 @@ management.
 python -m unittest
 ```
 
-180 tests covering CLI surfaces, compiler passes, pipeline composition, MCP
+183 tests covering CLI surfaces, compiler passes, pipeline composition, MCP
 tools, session bundle, Conductor scaffold, and the end-to-end value integration.
 
 See `CONTRIBUTING.md` for contribution flow and documentation expectations.
 
 ## Public release notes
+
+- `0.1.15` — deterministic ranking topicality guardrails:
+  - adds docs-mode topicality scoring so docs-shaped tasks lead with docs that
+    match the requested retrieval/ranking/troubleshooting subject, not generic
+    indexes or unrelated specs
+  - adds generic locality scoring for refactor tasks so direct retrieval/ranking
+    hits keep sibling source/tests/docs nearby before broad runtime spillover
+  - introduces an explainable ranking score substrate with deterministic feature
+    buckets for lexical, alias, document-shape, topicality, locality, penalties,
+    and final score
+  - updates the downstream lane-regression prompt to run the pytest-style
+    retrieval benchmark with pytest instead of unittest
 
 - `0.1.14` — lane-quality anchor and refactor-classification follow-up:
   - keeps docs-shaped tasks from stealing the five canonical repo anchors out of
@@ -553,6 +565,7 @@ See `CONTRIBUTING.md` for contribution flow and documentation expectations.
   - keeps wiki log snippets tail-biased to prioritize recent project history
 
 Detailed notes:
+- `docs/releases/0.1.15.md`
 - `docs/releases/0.1.14.md`
 - `docs/releases/0.1.13.md`
 - `docs/releases/0.1.12.md`
