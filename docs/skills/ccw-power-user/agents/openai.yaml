@@ -1,0 +1,4 @@
+interface:
+  display_name: "CCW Power User"
+  short_description: "Use CCW correctly as a deterministic context compiler."
+  default_prompt: "Use $ccw-power-user to prepare, consume, and update CCW context for this repository."

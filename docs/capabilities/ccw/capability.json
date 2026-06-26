@@ -1,0 +1,29 @@
+{
+  "name": "ccw",
+  "version": 1,
+  "description": "Capability ingredients for using CCW with harnesses: skills plus setup prompts.",
+  "skills": [
+    {
+      "name": "wiki-project-memory",
+      "path": "docs/skills/wiki-project-memory"
+    },
+    {
+      "name": "ccw-power-user",
+      "path": "docs/skills/ccw-power-user"
+    }
+  ],
+  "bootstrap_prompts": [
+    {
+      "id": "wiki-project-memory-bootstrap",
+      "path": "docs/capabilities/ccw/prompts/01-wiki-project-memory-bootstrap.prompt.md",
+      "skill": "wiki-project-memory",
+      "session_order": 1
+    },
+    {
+      "id": "ccw-power-user-bootstrap",
+      "path": "docs/capabilities/ccw/prompts/02-ccw-power-user-bootstrap.prompt.md",
+      "skill": "ccw-power-user",
+      "session_order": 2
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Wiki Project Memory"
+  short_description: "Maintain a small grep-friendly project memory vault."
+  default_prompt: "Use $wiki-project-memory to read, write, and maintain a project memory vault."
