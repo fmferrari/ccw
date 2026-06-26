@@ -122,7 +122,7 @@ pipx upgrade ccw-mcp
 `uvx`-launched clients:
 
 ```bash
-uvx --refresh ccw-mcp==0.1.17 --help
+uvx --refresh ccw-mcp==0.1.18 --help
 ```
 
 APM-based clients:
@@ -459,12 +459,20 @@ management.
 python -m unittest
 ```
 
-186 tests covering CLI surfaces, compiler passes, pipeline composition, MCP
+189 tests covering CLI surfaces, compiler passes, pipeline composition, MCP
 tools, session bundle, Conductor scaffold, and the end-to-end value integration.
 
 See `CONTRIBUTING.md` for contribution flow and documentation expectations.
 
 ## Public release notes
+
+- `0.1.18` — subject-coupled docs ranking and wiki-structure evidence:
+  - requires docs candidates to have subject coupling or deterministic adjacency
+    before they can lead docs-mode lanes
+  - exposes Markdown frontmatter, wikilinks, and markdown links as deterministic
+    artifact search text for ranking
+  - suppresses generic root config, lockfiles, Dockerfiles, and OS junk from
+    code-task lanes unless the task asks for config/infra/tooling work
 
 - `0.1.17` — docs-lane moderation after downstream audit:
   - lets docs-mode documentation candidates earn topicality from docs-intent
@@ -582,6 +590,7 @@ See `CONTRIBUTING.md` for contribution flow and documentation expectations.
   - keeps wiki log snippets tail-biased to prioritize recent project history
 
 Detailed notes:
+- `docs/releases/0.1.18.md`
 - `docs/releases/0.1.17.md`
 - `docs/releases/0.1.16.md`
 - `docs/releases/0.1.15.md`

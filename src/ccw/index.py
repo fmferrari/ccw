@@ -602,6 +602,10 @@ def _collect_document_artifact(source_file: SourceFile) -> ArtifactRecord | None
 
 def _artifact_title(path: str, language: str, text: str) -> str:
     if language == "markdown":
+        frontmatter = _markdown_frontmatter(text)
+        frontmatter_title = frontmatter.get("title")
+        if frontmatter_title:
+            return frontmatter_title
         for line in text.splitlines():
             stripped = line.strip()
             if stripped.startswith("#"):
@@ -617,7 +621,48 @@ def _artifact_search_text(language: str, text: str) -> str:
             normalized_json = text
         return _normalize_search_text(normalized_json)
 
+    if language == "markdown":
+        return _normalize_search_text(_markdown_structural_search_text(text))
+
     return _normalize_search_text(text)
+
+
+def _markdown_frontmatter(text: str) -> dict[str, str]:
+    lines = text.splitlines()
+    if not lines or lines[0].strip() != "---":
+        return {}
+    values: dict[str, str] = {}
+    for line in lines[1:]:
+        stripped = line.strip()
+        if stripped == "---":
+            break
+        if not stripped or stripped.startswith("#") or ":" not in stripped:
+            continue
+        key, value = stripped.split(":", 1)
+        normalized_value = value.strip().strip('"\'')
+        if normalized_value.startswith("[") and normalized_value.endswith("]"):
+            normalized_value = normalized_value[1:-1].replace(",", " ")
+        values[key.strip().lower()] = normalized_value
+    return values
+
+
+def _markdown_structural_search_text(text: str) -> str:
+    frontmatter = _markdown_frontmatter(text)
+    structural_parts: list[str] = []
+    for key in ("title", "tags", "type", "status"):
+        value = frontmatter.get(key, "")
+        if value:
+            structural_parts.append(f"frontmatter {key} {value}")
+
+    for wikilink_target in re.findall(r"\[\[([^\]|#]+)(?:[#|][^\]]*)?\]\]", text):
+        structural_parts.append(f"wikilink {wikilink_target}")
+        structural_parts.extend(re.findall(r"[A-Za-z0-9_]+", wikilink_target.replace("/", " ").replace("-", " ")))
+
+    for markdown_link_target in re.findall(r"\[[^\]]+\]\(([^)]+)\)", text):
+        structural_parts.append(f"markdownlink {markdown_link_target}")
+        structural_parts.extend(re.findall(r"[A-Za-z0-9_]+", markdown_link_target.replace("/", " ").replace("-", " ")))
+
+    return " ".join([text, *structural_parts])
 
 
 def _normalize_search_text(text: str) -> str:

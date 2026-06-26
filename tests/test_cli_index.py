@@ -619,6 +619,38 @@ class IndexCliTests(unittest.TestCase):
             }
             self.assertEqual(read_snapshot(target), expected_snapshot)
 
+    def test_index_markdown_artifacts_expose_frontmatter_and_links(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            assert run_ccw("init", cwd=target).returncode == 0
+            write_text(
+                target / "wiki" / "retrieval-notes.md",
+                """---
+title: Retrieval ranking notes
+tags: [retrieval, ranking, troubleshooting]
+type: architecture
+status: active
+---
+
+# Fallback heading
+
+See [[scripts/wiki_search.py]] and [ranking tests](tests/test_wiki_search.py).
+""",
+            )
+
+            result = run_ccw("index", cwd=target)
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+            database_path = target / ".ccw" / "index.sqlite"
+            rows = fetch_artifact_rows(database_path)
+            self.assertEqual(len(rows), 1)
+            file_path, kind, title, search_text = rows[0]
+            self.assertEqual((file_path, kind, title), ("wiki/retrieval-notes.md", "markdown", "Retrieval ranking notes"))
+            self.assertIn("frontmatter tags retrieval ranking troubleshooting", search_text)
+            self.assertIn("wikilink scripts/wiki_search.py", search_text)
+            self.assertIn("scripts wiki_search py", search_text)
+            self.assertIn("markdownlink tests/test_wiki_search.py", search_text)
+
     def test_index_resolves_parent_directory_script_imports_and_re_exports(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             target = Path(temp_dir)

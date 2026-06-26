@@ -423,6 +423,12 @@ class RankingScore:
 
 
 @dataclass(frozen=True)
+class DocsAdjacencyEvidence:
+    anchor_terms: frozenset[str]
+    best_anchor_topical: float
+
+
+@dataclass(frozen=True)
 class ContextSection:
     name: str
     items: tuple[RankedFile | str, ...] = ()
@@ -750,6 +756,56 @@ def _is_task_evidence_noise_path(path: str) -> bool:
     return bool(dot and extension in {"gif", "ico", "jpeg", "jpg", "lock", "png", "svg", "webp"})
 
 
+def _task_allows_generic_clutter(tokens: list[str], task_mode: str | None) -> bool:
+    if _normalize_task_mode(task_mode) in {"review"}:
+        return True
+    return bool(
+        set(tokens)
+        & {
+            "build",
+            "ci",
+            "config",
+            "configuration",
+            "container",
+            "dependency",
+            "dependencies",
+            "docker",
+            "environment",
+            "harness",
+            "infra",
+            "infrastructure",
+            "package",
+            "release",
+            "tool",
+            "tooling",
+        }
+    )
+
+
+def _is_generic_clutter_path(path: str) -> bool:
+    normalized = _normalize_path(path).lower()
+    segments = _path_segments(normalized)
+    basename = segments[-1] if segments else normalized
+    parent_segments = segments[:-1]
+    if basename in {".ds_store", "thumbs.db"}:
+        return True
+    if basename.endswith(".lock") or basename in {"package-lock.json", "yarn.lock", "pnpm-lock.yaml"}:
+        return True
+    if basename in {"dockerfile", "docker-compose.yml", "docker-compose.yaml"}:
+        return True
+    root_config_basenames = {
+        ".env",
+        ".env.example",
+        ".gitignore",
+        ".prettierrc",
+        ".ruff.toml",
+        "pyproject.toml",
+        "tsconfig.json",
+        "package.json",
+    }
+    return not parent_segments and basename in root_config_basenames
+
+
 def _is_excluded_agentic_path(path: str) -> bool:
     return _is_third_party_path(path)
 
@@ -905,6 +961,9 @@ def explain_task_file_score(
         "generic_index_penalty": 0.0,
         "locality": 0.0,
         "artifact_penalty": 0.0,
+        "subject_coupling": 0.0,
+        "docs_adjacency": 0.0,
+        "clutter_penalty": 0.0,
     }
 
     lexical, alias = _path_match_feature_scores(file_path, tokens)
@@ -930,6 +989,14 @@ def explain_task_file_score(
             tokens=tokens,
             topical_text=topical_text,
         )
+    if docs_intent:
+        features["subject_coupling"] = _subject_coupling_score(
+            file_path=file_path,
+            tokens=tokens,
+            topical_text=topical_text,
+        )
+    if docs_intent and _is_task_documentation_candidate(file_path) and features["subject_coupling"] >= 3.0:
+        features["document_shape"] += 8.0
 
     symbol_boost = 0.0
     weak_symbol_terms = {
@@ -1109,6 +1176,118 @@ def _documentation_intent_topicality_score(
     return min(len(matches) * 2.5, 7.5)
 
 
+def _subject_terms(tokens: list[str]) -> set[str]:
+    lane_terms = (
+        _TASK_DOC_HINT_TOKENS
+        | _TASK_DOC_INTENT_SECONDARY_TOKENS
+        | _TASK_TEST_HINT_TOKENS
+        | _TASK_IMPLEMENT_HINT_TOKENS
+        | _TASK_REFACTOR_HINT_TOKENS
+        | {
+            "behavior",
+            "behaviour",
+            "clarity",
+            "flow",
+            "note",
+            "notes",
+            "preserve",
+            "preserving",
+            "troubleshoot",
+            "troubleshooting",
+        }
+    )
+    terms: set[str] = set()
+    for token in tokens:
+        lowered = token.lower()
+        if len(lowered) <= 2 or lowered in lane_terms:
+            continue
+        terms.update(_term_variants(lowered))
+        terms.update(_TASK_KEYWORD_ALIASES.get(lowered, ()))
+    return terms
+
+
+def _subject_coupling_score(file_path: str, tokens: list[str], topical_text: str) -> float:
+    subject_terms = _subject_terms(tokens)
+    if not subject_terms:
+        return 0.0
+
+    path_terms = _path_term_set(file_path)
+    text_terms = set(_tokenize(topical_text)) if topical_text else set()
+    exact_path_matches = len(subject_terms & path_terms)
+    exact_text_matches = len(subject_terms & text_terms)
+    cooccurrence_boost = 3.0 if len(subject_terms & (path_terms | text_terms)) >= 2 else 0.0
+    return min((exact_path_matches * 3.0) + (exact_text_matches * 2.0) + cooccurrence_boost, 18.0)
+
+
+def _with_score_feature(score: RankingScore, feature_name: str, value: float) -> RankingScore:
+    if value == 0.0:
+        return score
+    features = dict(score.features)
+    features[feature_name] = features.get(feature_name, 0.0) + value
+    return RankingScore(total=score.total + value, features=features)
+
+
+def _infer_docs_adjacency_evidence(
+    scored_items: list[tuple[RankingScore, str, str, bool]],
+) -> DocsAdjacencyEvidence:
+    common_terms = {
+        "app",
+        "file",
+        "js",
+        "jsx",
+        "md",
+        "py",
+        "src",
+        "test",
+        "tests",
+        "ts",
+        "tsx",
+    }
+    anchors: list[tuple[float, str]] = []
+    for score, file_path, _language, is_third_party in scored_items:
+        if is_third_party or _is_task_documentation_candidate(file_path):
+            continue
+        topical = _topical_component(score)
+        if topical >= 8.0 or score.features.get("subject_coupling", 0.0) >= 3.0:
+            anchors.append((topical, file_path))
+
+    anchors.sort(key=lambda item: (-item[0], item[1]))
+    terms: set[str] = set()
+    for _, file_path in anchors[:3]:
+        terms.update(_path_term_set(file_path) - common_terms)
+    return DocsAdjacencyEvidence(
+        anchor_terms=frozenset(terms),
+        best_anchor_topical=anchors[0][0] if anchors else 0.0,
+    )
+
+
+def _docs_adjacency_score(
+    file_path: str,
+    topical_text: str,
+    tokens: list[str],
+    evidence: DocsAdjacencyEvidence,
+) -> float:
+    if not evidence.anchor_terms or not _is_task_documentation_candidate(file_path):
+        return 0.0
+
+    path_terms = _path_term_set(file_path)
+    text_terms = _path_term_set(topical_text) if topical_text else set()
+    subject_terms = _subject_terms(tokens)
+
+    shared_subject_terms = subject_terms & (path_terms | text_terms)
+    anchor_mentions = evidence.anchor_terms & text_terms
+    same_topic_path_terms = evidence.anchor_terms & path_terms
+
+    score = 0.0
+    if shared_subject_terms:
+        score += min(len(shared_subject_terms) * 2.0, 6.0)
+    if anchor_mentions:
+        score += min(len(anchor_mentions) * 2.5, 7.5)
+    if len(same_topic_path_terms) >= 2:
+        score += 4.0
+    return min(score, 12.0)
+
+
 def _locality_score(
     file_path: str,
     task_mode: str | None,
@@ -1141,6 +1320,8 @@ def _topical_component(score: RankingScore) -> float:
         + score.features.get("topicality", 0.0)
         + score.features.get("symbol", 0.0)
         + score.features.get("locality", 0.0)
+        + score.features.get("subject_coupling", 0.0)
+        + score.features.get("docs_adjacency", 0.0)
     )
 
 
@@ -1183,10 +1364,16 @@ def _apply_topicality_gate(
         return score.total
 
     if asks_for_docs and _is_task_documentation_candidate(file_path):
+        has_subject_coupling = score.features.get("subject_coupling", 0.0) >= 3.0
+        has_docs_adjacency = score.features.get("docs_adjacency", 0.0) >= 4.0
+        if not has_subject_coupling and not has_docs_adjacency and best_topical >= 8.0:
+            return score.total - 45.0
         primary_topical = (
             score.features.get("lexical", 0.0)
             + score.features.get("topicality", 0.0)
             + score.features.get("symbol", 0.0)
+            + score.features.get("subject_coupling", 0.0)
+            + score.features.get("docs_adjacency", 0.0)
         )
         if (
             score.features.get("lexical", 0.0) <= 0.0
@@ -1473,6 +1660,8 @@ def rank_file_lanes(
         normalized_path = _normalize_path(file_path)
         if _is_ranking_noise_path(normalized_path) or _is_task_evidence_noise_path(normalized_path):
             continue
+        if _is_generic_clutter_path(normalized_path) and not _task_allows_generic_clutter(tokens, mode):
+            continue
         prioritize_in_task_lane = (
             (docs_intent or mode == "docs")
             and _is_task_documentation_candidate(normalized_path)
@@ -1509,6 +1698,19 @@ def rank_file_lanes(
             locality_anchor_terms=locality_anchor_terms,
         )
         task_score_details.append((score, file_path, language, _is_third_party_path(normalized_path)))
+
+    if docs_intent:
+        docs_adjacency_evidence = _infer_docs_adjacency_evidence(task_score_details)
+        with_adjacency: list[tuple[RankingScore, str, str, bool]] = []
+        for score, file_path, language, is_third_party in task_score_details:
+            adjacency = _docs_adjacency_score(
+                file_path=file_path,
+                topical_text=artifact_search_text.get(file_path, ""),
+                tokens=tokens,
+                evidence=docs_adjacency_evidence,
+            )
+            with_adjacency.append((_with_score_feature(score, "docs_adjacency", adjacency), file_path, language, is_third_party))
+        task_score_details = with_adjacency
 
     best_topical = max((_topical_component(score) for score, _, _, _ in task_score_details), default=0.0)
     adjusted_task_details: list[tuple[float, str, str, bool]] = []
