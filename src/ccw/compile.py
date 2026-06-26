@@ -924,6 +924,12 @@ def explain_task_file_score(
         search_terms=search_terms,
         topical_text=topical_text,
     )
+    if docs_intent and _is_task_documentation_candidate(file_path):
+        features["topicality"] += _documentation_intent_topicality_score(
+            file_path=file_path,
+            tokens=tokens,
+            topical_text=topical_text,
+        )
 
     symbol_boost = 0.0
     weak_symbol_terms = {
@@ -1065,6 +1071,42 @@ def _topicality_score(
         + cooccurrence_boost,
         28.0,
     )
+
+
+def _documentation_intent_topicality_score(
+    file_path: str,
+    tokens: list[str],
+    topical_text: str,
+) -> float:
+    """Score docs-intent terms only for documentation-shaped candidates.
+
+    General topicality treats terms like "behavior", "troubleshooting", and
+    "notes" as weak so source/test files cannot win solely on generic task
+    wording. In docs mode those terms are meaningful evidence for doc files: a
+    behavior spec or troubleshooting note should clear the docs topicality gate
+    before source/test files when no more specific retrieval docs exist.
+    """
+
+    doc_terms = {
+        "behavior",
+        "behaviour",
+        "guide",
+        "guides",
+        "note",
+        "notes",
+        "readme",
+        "troubleshoot",
+        "troubleshooting",
+    }
+    task_doc_terms = {token for token in tokens if token in doc_terms}
+    if not task_doc_terms:
+        return 0.0
+
+    evidence_terms = _path_term_set(file_path)
+    if topical_text:
+        evidence_terms.update(_tokenize(topical_text))
+    matches = task_doc_terms & evidence_terms
+    return min(len(matches) * 2.5, 7.5)
 
 
 def _locality_score(

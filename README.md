@@ -122,7 +122,7 @@ pipx upgrade ccw-mcp
 `uvx`-launched clients:
 
 ```bash
-uvx --refresh ccw-mcp==0.1.16 --help
+uvx --refresh ccw-mcp==0.1.17 --help
 ```
 
 APM-based clients:
@@ -459,12 +459,20 @@ management.
 python -m unittest
 ```
 
-185 tests covering CLI surfaces, compiler passes, pipeline composition, MCP
+186 tests covering CLI surfaces, compiler passes, pipeline composition, MCP
 tools, session bundle, Conductor scaffold, and the end-to-end value integration.
 
 See `CONTRIBUTING.md` for contribution flow and documentation expectations.
 
 ## Public release notes
+
+- `0.1.17` — docs-lane moderation after downstream audit:
+  - lets docs-mode documentation candidates earn topicality from docs-intent
+    terms such as behavior, troubleshooting, and notes
+  - keeps those terms weak for source/test files so implementation and test lane
+    behavior remains unchanged
+  - adds a regression for the `wikiagent` docs-shaped retrieval-ranking audit
+    case where a wiki/spec doc should lead before benchmark/source files
 
 - `0.1.16` — deterministic topical relevance scoring:
   - makes topical relevance dominate lane-shape priors so unrelated docs/specs
@@ -574,6 +582,7 @@ See `CONTRIBUTING.md` for contribution flow and documentation expectations.
   - keeps wiki log snippets tail-biased to prioritize recent project history
 
 Detailed notes:
+- `docs/releases/0.1.17.md`
 - `docs/releases/0.1.16.md`
 - `docs/releases/0.1.15.md`
 - `docs/releases/0.1.14.md`

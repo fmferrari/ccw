@@ -1290,6 +1290,72 @@ class RankFilesTests(unittest.TestCase):
             self.assertEqual(task_paths[:2], ["scripts/wiki_search.py", "tests/test_wiki_search.py"])
             self.assertNotIn("wiki/user/ops/specs/hermes-telegram-mcp-bridge-spec.md", task_paths[:2])
 
+    def test_rank_file_lanes_docs_mode_prefers_moderately_topical_docs_before_source(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            state_dir = target / ".ccw"
+            state_dir.mkdir(parents=True, exist_ok=True)
+            (state_dir / "compiled").mkdir(parents=True, exist_ok=True)
+            (state_dir / "snapshots").mkdir(parents=True, exist_ok=True)
+            write_text(state_dir / "config.yaml", "config_version: 1\n")
+            database_path = state_dir / "index.sqlite"
+
+            with sqlite3.connect(database_path) as connection:
+                connection.executescript(
+                    """
+                    CREATE TABLE files (
+                        id INTEGER PRIMARY KEY,
+                        path TEXT NOT NULL UNIQUE,
+                        content_hash TEXT NOT NULL,
+                        size_bytes INTEGER NOT NULL,
+                        language TEXT NOT NULL,
+                        last_commit_at INTEGER
+                    );
+                    CREATE TABLE symbols (
+                        id INTEGER PRIMARY KEY,
+                        file_path TEXT NOT NULL,
+                        name TEXT NOT NULL,
+                        kind TEXT NOT NULL,
+                        line INTEGER NOT NULL,
+                        end_line INTEGER NOT NULL,
+                        export_name TEXT
+                    );
+                    CREATE TABLE artifacts (
+                        id INTEGER PRIMARY KEY,
+                        file_path TEXT NOT NULL,
+                        kind TEXT NOT NULL,
+                        title TEXT NOT NULL,
+                        search_text TEXT NOT NULL
+                    );
+                    INSERT INTO files (path, content_hash, size_bytes, language, last_commit_at)
+                    VALUES
+                        ('tests/retrieval_vs_analysis_benchmark.py', 'a', 1, 'python', NULL),
+                        ('scripts/wiki_search.py', 'b', 1, 'python', NULL),
+                        ('wiki/user/ops/specs/track-state-behavior-rules-spec.md', 'c', 1, 'markdown', NULL),
+                        ('tests/retrieval_benchmark.py', 'd', 1, 'python', NULL),
+                        ('scripts/wiki_reranker.py', 'e', 1, 'python', NULL);
+                    INSERT INTO symbols (file_path, name, kind, line, end_line)
+                    VALUES
+                        ('tests/retrieval_vs_analysis_benchmark.py', 'test_retrieval_ranking_stability', 'function', 1, 10),
+                        ('scripts/wiki_search.py', '_score_retrieval_ranking_result', 'function', 1, 10),
+                        ('tests/retrieval_benchmark.py', 'test_retrieval_tie_handling', 'function', 1, 10),
+                        ('scripts/wiki_reranker.py', 'rerank_pages', 'function', 1, 10);
+                    """
+                )
+
+            task_ranked, _ = rank_file_lanes(
+                target=target,
+                task_description="Document retrieval ranking behavior and troubleshooting notes",
+                database_path=database_path,
+                max_items=5,
+                max_agentic_items=0,
+                task_mode="docs",
+            )
+
+            task_paths = [rf.file_path for rf in task_ranked]
+            self.assertEqual(task_paths[0], "wiki/user/ops/specs/track-state-behavior-rules-spec.md")
+            self.assertIn("scripts/wiki_search.py", task_paths[1:])
+
     def test_rank_file_lanes_refactor_keeps_retrieval_siblings_before_runtime_spillover(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             target = Path(temp_dir)
