@@ -1424,6 +1424,81 @@ class RankFilesTests(unittest.TestCase):
             self.assertEqual(task_paths[0], "wiki/user/ops/specs/retrieval-notes.md")
             self.assertNotIn("wiki/user/ops/specs/track-state-behavior-rules-spec.md", task_paths[:2])
 
+    def test_rank_file_lanes_docs_mode_does_not_let_docs_shape_swamp_subject_relevance(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            state_dir = target / ".ccw"
+            state_dir.mkdir(parents=True, exist_ok=True)
+            (state_dir / "compiled").mkdir(parents=True, exist_ok=True)
+            (state_dir / "snapshots").mkdir(parents=True, exist_ok=True)
+            write_text(state_dir / "config.yaml", "config_version: 1\n")
+            database_path = state_dir / "index.sqlite"
+
+            with sqlite3.connect(database_path) as connection:
+                connection.executescript(
+                    """
+                    CREATE TABLE files (
+                        id INTEGER PRIMARY KEY,
+                        path TEXT NOT NULL UNIQUE,
+                        content_hash TEXT NOT NULL,
+                        size_bytes INTEGER NOT NULL,
+                        language TEXT NOT NULL,
+                        last_commit_at INTEGER
+                    );
+                    CREATE TABLE symbols (
+                        id INTEGER PRIMARY KEY,
+                        file_path TEXT NOT NULL,
+                        name TEXT NOT NULL,
+                        kind TEXT NOT NULL,
+                        line INTEGER NOT NULL,
+                        end_line INTEGER NOT NULL,
+                        export_name TEXT
+                    );
+                    CREATE TABLE artifacts (
+                        id INTEGER PRIMARY KEY,
+                        file_path TEXT NOT NULL,
+                        kind TEXT NOT NULL,
+                        title TEXT NOT NULL,
+                        search_text TEXT NOT NULL
+                    );
+                    INSERT INTO files (path, content_hash, size_bytes, language, last_commit_at)
+                    VALUES
+                        ('wiki/user/ops/specs/track-state-behavior-rules-spec.md', 'a', 1, 'markdown', NULL),
+                        ('wiki/user/ops/plans/harness-runtime-migration-plan.md', 'b', 1, 'markdown', NULL),
+                        ('wiki/user/tracks/italian-learning/notes/procedimento-di-miglioramento-progressivo.md', 'c', 1, 'markdown', NULL),
+                        ('tests/retrieval_vs_analysis_benchmark.py', 'd', 1, 'python', NULL),
+                        ('scripts/wiki_search.py', 'e', 1, 'python', NULL),
+                        ('scripts/wiki_reranker.py', 'f', 1, 'python', NULL),
+                        ('agent-browser.json', 'g', 1, 'json', NULL);
+                    INSERT INTO symbols (file_path, name, kind, line, end_line)
+                    VALUES
+                        ('tests/retrieval_vs_analysis_benchmark.py', 'test_retrieval_ranking_stability', 'function', 1, 10),
+                        ('scripts/wiki_search.py', '_score_retrieval_ranking_result', 'function', 1, 10),
+                        ('scripts/wiki_reranker.py', 'rerank_pages', 'function', 1, 10);
+                    INSERT INTO artifacts (file_path, kind, title, search_text)
+                    VALUES
+                        ('wiki/user/ops/specs/track-state-behavior-rules-spec.md', 'markdown', 'Track state behavior rules', 'state behavior routing lifecycle'),
+                        ('wiki/user/ops/plans/harness-runtime-migration-plan.md', 'markdown', 'Harness runtime migration plan', 'runtime adapter migration plan'),
+                        ('wiki/user/tracks/italian-learning/notes/procedimento-di-miglioramento-progressivo.md', 'markdown', 'Procedimento di miglioramento progressivo', 'italian learning notes practice');
+                    """
+                )
+
+            task_ranked, _ = rank_file_lanes(
+                target=target,
+                task_description="Document retrieval ranking behavior and troubleshooting notes",
+                database_path=database_path,
+                max_items=5,
+                max_agentic_items=0,
+                task_mode="docs",
+            )
+
+            task_paths = [rf.file_path for rf in task_ranked]
+            self.assertEqual(task_paths[0], "scripts/wiki_search.py")
+            self.assertIn("scripts/wiki_reranker.py", task_paths[:3])
+            self.assertNotIn("wiki/user/ops/specs/track-state-behavior-rules-spec.md", task_paths[:3])
+            self.assertNotIn("wiki/user/tracks/italian-learning/notes/procedimento-di-miglioramento-progressivo.md", task_paths[:3])
+            self.assertNotIn("agent-browser.json", task_paths)
+
     def test_rank_file_lanes_suppresses_generic_clutter_for_code_tasks(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             target = Path(temp_dir)

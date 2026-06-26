@@ -803,7 +803,14 @@ def _is_generic_clutter_path(path: str) -> bool:
         "tsconfig.json",
         "package.json",
     }
-    return not parent_segments and basename in root_config_basenames
+    if parent_segments:
+        return False
+    if basename in root_config_basenames:
+        return True
+    if "." in basename:
+        extension = basename.rsplit(".", 1)[-1]
+        return extension in {"json", "lock", "toml", "yaml", "yml"}
+    return False
 
 
 def _is_excluded_agentic_path(path: str) -> bool:

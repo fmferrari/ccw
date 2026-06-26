@@ -80,6 +80,12 @@ def classify(target: Path, text: str) -> str:
 
 def _determine_mode(text: str) -> str:
     tokens = re.findall(r"[a-zA-Z_][a-zA-Z0-9_]*", text.lower())
+    token_set = set(tokens)
+    if (
+        token_set & {"regression", "stability", "coverage"}
+        and token_set & {"test", "tests", "pytest", "unittest"}
+    ):
+        return "review"
     scores: dict[str, int] = {mode: 0 for mode in CLASSIFICATION_MODES}
 
     for token in tokens:

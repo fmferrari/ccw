@@ -123,6 +123,20 @@ class ClassifyCliTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(result.stdout.strip(), "docs")
 
+    def test_classify_regression_test_prompt_uses_review_recipe(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            self.assertEqual(run_ccw("init", cwd=target).returncode, 0)
+
+            result = run_ccw(
+                "classify",
+                "Add regression tests for retrieval ranking stability and tie handling",
+                cwd=target,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout.strip(), "review")
+
     def test_classify_defaults_to_implementation(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             target = Path(temp_dir)
