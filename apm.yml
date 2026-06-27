@@ -1,5 +1,5 @@
 name: ccw
-version: 0.1.19
+version: 0.1.20
 description: "Deterministic context compiler for small-window coding models"
 author: Felipe Ferrari
 license: MIT

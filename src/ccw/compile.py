@@ -1002,7 +1002,11 @@ def explain_task_file_score(
             tokens=tokens,
             topical_text=topical_text,
         )
-    if docs_intent and _is_task_documentation_candidate(file_path) and features["subject_coupling"] >= 3.0:
+    if (
+        docs_intent
+        and _is_task_documentation_candidate(file_path)
+        and features["subject_coupling"] >= _subject_coupling_threshold(tokens)
+    ):
         features["document_shape"] += 8.0
 
     symbol_boost = 0.0
@@ -1035,7 +1039,6 @@ def explain_task_file_score(
         for token in symbol_terms:
             if _term_matches_symbol(token, symbol_name):
                 symbol_boost += 2.0
-                break
     features["symbol"] = min(symbol_boost, 8.0)
 
     if last_commit_at is not None:
@@ -1184,6 +1187,14 @@ def _documentation_intent_topicality_score(
 
 
 def _subject_terms(tokens: list[str]) -> set[str]:
+    base_terms = _primary_subject_base_terms(tokens)
+    terms = _primary_subject_terms(tokens)
+    for lowered in base_terms:
+        terms.update(_TASK_KEYWORD_ALIASES.get(lowered, ()))
+    return terms
+
+
+def _primary_subject_base_terms(tokens: list[str]) -> set[str]:
     lane_terms = (
         _TASK_DOC_HINT_TOKENS
         | _TASK_DOC_INTENT_SECONDARY_TOKENS
@@ -1203,18 +1214,23 @@ def _subject_terms(tokens: list[str]) -> set[str]:
             "troubleshooting",
         }
     )
+    return {
+        token.lower()
+        for token in tokens
+        if len(token.lower()) > 2 and token.lower() not in lane_terms
+    }
+
+
+def _primary_subject_terms(tokens: list[str]) -> set[str]:
+    base_terms = _primary_subject_base_terms(tokens)
     terms: set[str] = set()
-    for token in tokens:
-        lowered = token.lower()
-        if len(lowered) <= 2 or lowered in lane_terms:
-            continue
+    for lowered in base_terms:
         terms.update(_term_variants(lowered))
-        terms.update(_TASK_KEYWORD_ALIASES.get(lowered, ()))
     return terms
 
 
 def _subject_coupling_score(file_path: str, tokens: list[str], topical_text: str) -> float:
-    subject_terms = _subject_terms(tokens)
+    subject_terms = _primary_subject_terms(tokens)
     if not subject_terms:
         return 0.0
 
@@ -1224,6 +1240,11 @@ def _subject_coupling_score(file_path: str, tokens: list[str], topical_text: str
     exact_text_matches = len(subject_terms & text_terms)
     cooccurrence_boost = 3.0 if len(subject_terms & (path_terms | text_terms)) >= 2 else 0.0
     return min((exact_path_matches * 3.0) + (exact_text_matches * 2.0) + cooccurrence_boost, 18.0)
+
+
+def _subject_coupling_threshold(tokens: list[str]) -> float:
+    primary_terms = _primary_subject_base_terms(tokens)
+    return 3.0 if len(primary_terms) <= 1 else 8.0
 
 
 def _with_score_feature(score: RankingScore, feature_name: str, value: float) -> RankingScore:
@@ -1279,7 +1300,7 @@ def _docs_adjacency_score(
 
     path_terms = _path_term_set(file_path)
     text_terms = _path_term_set(topical_text) if topical_text else set()
-    subject_terms = _subject_terms(tokens)
+    subject_terms = _primary_subject_terms(tokens)
 
     shared_subject_terms = subject_terms & (path_terms | text_terms)
     anchor_mentions = evidence.anchor_terms & text_terms
@@ -1288,7 +1309,7 @@ def _docs_adjacency_score(
     score = 0.0
     if shared_subject_terms:
         score += min(len(shared_subject_terms) * 2.0, 6.0)
-    if anchor_mentions:
+    if len(anchor_mentions) >= 2:
         score += min(len(anchor_mentions) * 2.5, 7.5)
     if len(same_topic_path_terms) >= 2:
         score += 4.0
@@ -1371,10 +1392,10 @@ def _apply_topicality_gate(
         return score.total
 
     if asks_for_docs and _is_task_documentation_candidate(file_path):
-        has_subject_coupling = score.features.get("subject_coupling", 0.0) >= 3.0
-        has_docs_adjacency = score.features.get("docs_adjacency", 0.0) >= 4.0
+        has_subject_coupling = score.features.get("subject_coupling", 0.0) >= _subject_coupling_threshold(tokens)
+        has_docs_adjacency = score.features.get("docs_adjacency", 0.0) >= 12.0
         if not has_subject_coupling and not has_docs_adjacency and best_topical >= 8.0:
-            return score.total - 45.0
+            return score.total - 55.0
         primary_topical = (
             score.features.get("lexical", 0.0)
             + score.features.get("topicality", 0.0)
@@ -1387,7 +1408,7 @@ def _apply_topicality_gate(
             and primary_topical < 12.0
             and primary_topical < (best_topical * 0.9)
         ):
-            return score.total - 45.0
+            return score.total - 55.0
 
     if asks_for_docs and not _is_task_documentation_candidate(file_path) and topical >= 8.0:
         return score.total + 4.0

@@ -122,7 +122,7 @@ pipx upgrade ccw-mcp
 `uvx`-launched clients:
 
 ```bash
-uvx --refresh ccw-mcp==0.1.19 --help
+uvx --refresh ccw-mcp==0.1.20 --help
 ```
 
 APM-based clients:
@@ -459,12 +459,20 @@ management.
 python -m unittest
 ```
 
-191 tests covering CLI surfaces, compiler passes, pipeline composition, MCP
+192 tests covering CLI surfaces, compiler passes, pipeline composition, MCP
 tools, session bundle, Conductor scaffold, and the end-to-end value integration.
 
 See `CONTRIBUTING.md` for contribution flow and documentation expectations.
 
 ## Public release notes
+
+- `0.1.20` — docs-lane subject-pairing after downstream feedback:
+  - requires stronger subject coupling for multi-subject docs prompts such as
+    retrieval + ranking before documentation-shaped files can lead
+  - tightens deterministic docs adjacency so broad long-form docs do not bypass
+    topicality gates through incidental anchor mentions
+  - lets symbol scoring recognize multiple matched subject terms while preserving
+    the existing cap, helping retrieval/ranking source and tests outrank broad docs
 
 - `0.1.19` — lane-audit tightening after downstream feedback:
   - routes regression/stability/coverage test prompts to the review recipe so
@@ -598,6 +606,7 @@ See `CONTRIBUTING.md` for contribution flow and documentation expectations.
   - keeps wiki log snippets tail-biased to prioritize recent project history
 
 Detailed notes:
+- `docs/releases/0.1.20.md`
 - `docs/releases/0.1.19.md`
 - `docs/releases/0.1.18.md`
 - `docs/releases/0.1.17.md`

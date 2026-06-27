@@ -1499,6 +1499,79 @@ class RankFilesTests(unittest.TestCase):
             self.assertNotIn("wiki/user/tracks/italian-learning/notes/procedimento-di-miglioramento-progressivo.md", task_paths[:3])
             self.assertNotIn("agent-browser.json", task_paths)
 
+    def test_rank_file_lanes_docs_mode_requires_specific_subject_pairing_for_broad_docs(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            target = Path(temp_dir)
+            state_dir = target / ".ccw"
+            state_dir.mkdir(parents=True, exist_ok=True)
+            (state_dir / "compiled").mkdir(parents=True, exist_ok=True)
+            (state_dir / "snapshots").mkdir(parents=True, exist_ok=True)
+            write_text(state_dir / "config.yaml", "config_version: 1\n")
+            database_path = state_dir / "index.sqlite"
+
+            with sqlite3.connect(database_path) as connection:
+                connection.executescript(
+                    """
+                    CREATE TABLE files (
+                        id INTEGER PRIMARY KEY,
+                        path TEXT NOT NULL UNIQUE,
+                        content_hash TEXT NOT NULL,
+                        size_bytes INTEGER NOT NULL,
+                        language TEXT NOT NULL,
+                        last_commit_at INTEGER
+                    );
+                    CREATE TABLE symbols (
+                        id INTEGER PRIMARY KEY,
+                        file_path TEXT NOT NULL,
+                        name TEXT NOT NULL,
+                        kind TEXT NOT NULL,
+                        line INTEGER NOT NULL,
+                        end_line INTEGER NOT NULL,
+                        export_name TEXT
+                    );
+                    CREATE TABLE artifacts (
+                        id INTEGER PRIMARY KEY,
+                        file_path TEXT NOT NULL,
+                        kind TEXT NOT NULL,
+                        title TEXT NOT NULL,
+                        search_text TEXT NOT NULL
+                    );
+                    INSERT INTO files (path, content_hash, size_bytes, language, last_commit_at)
+                    VALUES
+                        ('wiki/user/ops/plans/harness-runtime-migration-plan.md', 'a', 1, 'markdown', NULL),
+                        ('wiki/user/ops/specs/hermes-telegram-live-parity-spec.md', 'b', 1, 'markdown', NULL),
+                        ('wiki/user/ops/specs/hermes-telegram-mcp-bridge-spec.md', 'c', 1, 'markdown', NULL),
+                        ('scripts/wiki_search.py', 'd', 1, 'python', NULL),
+                        ('tests/test_wiki_search.py', 'e', 1, 'python', NULL),
+                        ('scripts/wiki_reranker.py', 'f', 1, 'python', NULL);
+                    INSERT INTO symbols (file_path, name, kind, line, end_line)
+                    VALUES
+                        ('scripts/wiki_search.py', '_score_retrieval_ranking_result', 'function', 1, 10),
+                        ('tests/test_wiki_search.py', 'test_retrieval_ranking_tie_handling', 'function', 1, 10),
+                        ('scripts/wiki_reranker.py', 'rerank_pages', 'function', 1, 10);
+                    INSERT INTO artifacts (file_path, kind, title, search_text)
+                    VALUES
+                        ('wiki/user/ops/plans/harness-runtime-migration-plan.md', 'markdown', 'Harness runtime migration plan', 'runtime harness durable memory retrieval shortcuts benchmark context'),
+                        ('wiki/user/ops/specs/hermes-telegram-live-parity-spec.md', 'markdown', 'Hermes Telegram live parity spec', 'telegram mcp runtime benchmark artifact retrieval search troubleshooting'),
+                        ('wiki/user/ops/specs/hermes-telegram-mcp-bridge-spec.md', 'markdown', 'Hermes Telegram MCP bridge spec', 'telegram mcp transport retrieval query routing notes');
+                    """
+                )
+
+            task_ranked, _ = rank_file_lanes(
+                target=target,
+                task_description="Document retrieval ranking behavior and troubleshooting notes",
+                database_path=database_path,
+                max_items=5,
+                max_agentic_items=0,
+                task_mode="docs",
+            )
+
+            task_paths = [rf.file_path for rf in task_ranked]
+            self.assertEqual(task_paths[0], "scripts/wiki_search.py")
+            self.assertIn("tests/test_wiki_search.py", task_paths[:3])
+            self.assertNotIn("wiki/user/ops/plans/harness-runtime-migration-plan.md", task_paths[:3])
+            self.assertNotIn("wiki/user/ops/specs/hermes-telegram-live-parity-spec.md", task_paths[:3])
+
     def test_rank_file_lanes_suppresses_generic_clutter_for_code_tasks(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             target = Path(temp_dir)
