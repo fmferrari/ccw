@@ -312,6 +312,9 @@ _TASK_DOC_PRIORITY_PATH_SEGMENTS = frozenset({
     "guides",
     "spec",
     "specs",
+    "wiki",
+    "docs",
+    "doc",
 })
 
 _TASK_CODE_EXTENSIONS = frozenset({
