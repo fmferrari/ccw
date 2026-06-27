@@ -1417,11 +1417,41 @@ def _is_docs_lane_fallback_doc_destination(
 ) -> bool:
     if _is_docs_lane_qualified_doc(file_path=file_path, score=score, tokens=tokens):
         return True
-    if not _is_task_documentation_candidate(file_path) or _is_docs_lane_clutter(file_path):
+    normalized = _normalize_path(file_path)
+    segments = _path_segments(normalized)
+    basename = segments[-1] if segments else normalized.lower()
+    is_docs_index = (
+        basename.rsplit(".", 1)[0] == "index"
+        and "docs" in segments[:-1]
+        and not _is_third_party_path(normalized)
+        and not _is_ranking_noise_path(normalized)
+        and not _is_task_evidence_noise_path(normalized)
+    )
+    if (
+        not _is_task_documentation_candidate(file_path)
+        or (_is_docs_lane_clutter(file_path) and not is_docs_index)
+    ):
         return False
     if _structured_data_doc_extension(file_path) and not _task_asks_to_document_structured_data(tokens):
         return False
     return True
+
+
+def _is_docs_lane_subject_relevant_destination(
+    file_path: str,
+    score: RankingScore,
+    tokens: list[str],
+) -> bool:
+    if not _is_docs_lane_fallback_doc_destination(
+        file_path=file_path,
+        score=score,
+        tokens=tokens,
+    ):
+        return False
+    return (
+        score.features.get("subject_coupling", 0.0) > 0.0
+        or score.features.get("docs_adjacency", 0.0) > 0.0
+    )
 
 
 def _promote_docs_lane_item(
@@ -1451,8 +1481,6 @@ def _compose_docs_mode_task_lane(
     if max_task_items <= 0:
         return ordered_items
 
-    top_five_limit = min(5, max_task_items)
-    visible_paths = [file_path for _, file_path, _ in ordered_items[:top_five_limit]]
     qualified_doc_paths = [
         file_path
         for _, file_path, _ in ordered_items
@@ -1462,17 +1490,34 @@ def _compose_docs_mode_task_lane(
             tokens=tokens,
         )
     ]
-    if any(file_path in visible_paths for file_path in qualified_doc_paths):
-        return ordered_items
     if qualified_doc_paths:
+        for insertion_index, candidate_path in enumerate(qualified_doc_paths[:2]):
+            ordered_items = _promote_docs_lane_item(
+                ordered_items=ordered_items,
+                candidate_path=candidate_path,
+                max_task_items=max_task_items,
+                insertion_index=insertion_index,
+            )
+        return ordered_items
+
+    subject_relevant_paths = [
+        file_path
+        for _, file_path, _ in ordered_items
+        if _is_docs_lane_subject_relevant_destination(
+            file_path=file_path,
+            score=score_by_path[file_path],
+            tokens=tokens,
+        )
+    ]
+    if subject_relevant_paths:
         return _promote_docs_lane_item(
             ordered_items=ordered_items,
-            candidate_path=qualified_doc_paths[0],
+            candidate_path=subject_relevant_paths[0],
             max_task_items=max_task_items,
-            insertion_index=min(max_task_items - 1, 1),
+            insertion_index=0,
         )
 
-    if top_five_limit < 5:
+    if min(5, max_task_items) < 5:
         return ordered_items
 
     fallback_paths = [
@@ -1484,6 +1529,10 @@ def _compose_docs_mode_task_lane(
             tokens=tokens,
         )
     ]
+    visible_paths = {
+        file_path
+        for _, file_path, _ in ordered_items[: min(5, max_task_items)]
+    }
     if not fallback_paths or any(file_path in visible_paths for file_path in fallback_paths):
         return ordered_items
 

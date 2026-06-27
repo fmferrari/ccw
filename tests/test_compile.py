@@ -1499,7 +1499,7 @@ class RankFilesTests(unittest.TestCase):
             self.assertNotIn("wiki/user/tracks/italian-learning/notes/procedimento-di-miglioramento-progressivo.md", task_paths[:3])
             self.assertNotIn("agent-browser.json", task_paths)
 
-    def test_rank_file_lanes_docs_mode_requires_specific_subject_pairing_for_broad_docs(self) -> None:
+    def test_rank_file_lanes_docs_mode_keeps_broad_docs_ahead_of_behavior_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             target = Path(temp_dir)
             state_dir = target / ".ccw"
@@ -1567,12 +1567,11 @@ class RankFilesTests(unittest.TestCase):
             )
 
             task_paths = [rf.file_path for rf in task_ranked]
-            self.assertEqual(task_paths[0], "scripts/wiki_search.py")
-            self.assertIn("tests/test_wiki_search.py", task_paths[:3])
-            self.assertNotIn("wiki/user/ops/plans/harness-runtime-migration-plan.md", task_paths[:3])
-            self.assertNotIn("wiki/user/ops/specs/hermes-telegram-live-parity-spec.md", task_paths[:3])
+            self.assertTrue(task_paths[0].endswith(".md"))
+            self.assertIn("scripts/wiki_search.py", task_paths[1:])
+            self.assertIn("tests/test_wiki_search.py", task_paths[1:])
 
-    def test_rank_file_lanes_docs_mode_inserts_fallback_doc_destination_after_behavior_evidence(self) -> None:
+    def test_rank_file_lanes_docs_mode_leads_with_subject_relevant_doc_destination(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             target = Path(temp_dir)
             state_dir = target / ".ccw"
@@ -1617,7 +1616,7 @@ class RankFilesTests(unittest.TestCase):
                         ('tests/test_wiki_search.py', 'd', 1, 'python', NULL),
                         ('tests/retrieval_vs_analysis_benchmark.py', 'e', 1, 'python', NULL),
                         ('tests/fixtures/retrieval_rank_cases.json', 'f', 1, 'json', NULL),
-                        ('docs/README.md', 'g', 1, 'markdown', NULL),
+                        ('docs/retrieval-guide.md', 'g', 1, 'markdown', NULL),
                         ('wiki/user/ops/specs/index.md', 'h', 1, 'markdown', NULL);
                     INSERT INTO symbols (file_path, name, kind, line, end_line)
                     VALUES
@@ -1628,7 +1627,7 @@ class RankFilesTests(unittest.TestCase):
                         ('tests/retrieval_vs_analysis_benchmark.py', 'test_retrieval_ranking_stability', 'function', 1, 10);
                     INSERT INTO artifacts (file_path, kind, title, search_text)
                     VALUES
-                        ('docs/README.md', 'markdown', 'Project README', 'installation usage contributing'),
+                        ('docs/retrieval-guide.md', 'markdown', 'Retrieval guide', 'retrieval usage and operations'),
                         ('wiki/user/ops/specs/index.md', 'markdown', 'Specs index', 'list of specifications');
                     """
                 )
@@ -1643,8 +1642,8 @@ class RankFilesTests(unittest.TestCase):
             )
 
             task_paths = [rf.file_path for rf in task_ranked]
-            self.assertNotIn("docs/README.md", task_paths[:3])
-            self.assertIn("docs/README.md", task_paths[:5])
+            self.assertEqual(task_paths[0], "docs/retrieval-guide.md")
+            self.assertTrue(any(path.endswith(".py") for path in task_paths[1:]))
             self.assertNotIn("wiki/user/ops/specs/index.md", task_paths[:5])
 
     def test_rank_file_lanes_docs_mode_treats_json_fixtures_as_behavior_not_fallback_docs(self) -> None:

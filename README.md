@@ -122,7 +122,7 @@ pipx upgrade ccw-mcp
 `uvx`-launched clients:
 
 ```bash
-uvx --refresh ccw-mcp==0.1.22 --help
+uvx --refresh ccw-mcp==0.1.23 --help
 ```
 
 APM-based clients:
@@ -465,6 +465,17 @@ tools, session bundle, Conductor scaffold, and the end-to-end value integration.
 See `CONTRIBUTING.md` for contribution flow and documentation expectations.
 
 ## Public release notes
+
+- `0.1.23` — docs-lane leading composition release:
+  - supersedes `0.1.22`, which was published before the docs lane could lead
+    with a subject-relevant documentation destination
+  - promotes up to two qualified docs into the leading task-lane slots when
+    they are sufficiently topical
+  - promotes one weaker but subject-relevant fallback doc into slot one when no
+    qualified doc exists, while preserving source/test leadership for unrelated
+    docs
+  - keeps the Phase 5M fallback-doc top-five behavior for generic doc
+    destinations that are still useful but not eligible to lead
 
 - `0.1.22` — corrective docs-lane evidence composition release:
   - supersedes `0.1.21`, which was published before the final top-five
