@@ -122,7 +122,7 @@ pipx upgrade ccw-mcp
 `uvx`-launched clients:
 
 ```bash
-uvx --refresh ccw-mcp==0.1.20 --help
+uvx --refresh ccw-mcp==0.1.22 --help
 ```
 
 APM-based clients:
@@ -459,12 +459,29 @@ management.
 python -m unittest
 ```
 
-192 tests covering CLI surfaces, compiler passes, pipeline composition, MCP
+194 tests covering CLI surfaces, compiler passes, pipeline composition, MCP
 tools, session bundle, Conductor scaffold, and the end-to-end value integration.
 
 See `CONTRIBUTING.md` for contribution flow and documentation expectations.
 
 ## Public release notes
+
+- `0.1.22` — corrective docs-lane evidence composition release:
+  - supersedes `0.1.21`, which was published before the final top-five
+    visibility recombination fix
+  - promotes a fallback doc destination into the first five task-lane items even
+    when that doc already ranked inside the larger task lane but below slot five
+  - strengthens regression coverage so larger docs-mode lanes cannot hide the
+    missing top-five doc destination
+
+- `0.1.21` — docs-lane evidence composition after downstream feedback:
+  - superseded by `0.1.22` for the final top-five promotion fix
+  - keeps docs-mode ranking topicality-first while assembling the top lane to
+    include one qualified or fallback human-authored doc destination
+  - preserves the top three behavior-evidence slots when no qualified doc exists
+    and inserts the fallback doc only when the task lane has at least five items
+  - treats JSON/YAML fixtures as behavior evidence by default, not fallback docs,
+    unless the task asks to document fixtures, schemas, or examples
 
 - `0.1.20` — docs-lane subject-pairing after downstream feedback:
   - requires stronger subject coupling for multi-subject docs prompts such as
@@ -606,6 +623,8 @@ See `CONTRIBUTING.md` for contribution flow and documentation expectations.
   - keeps wiki log snippets tail-biased to prioritize recent project history
 
 Detailed notes:
+- `docs/releases/0.1.22.md`
+- `docs/releases/0.1.21.md`
 - `docs/releases/0.1.20.md`
 - `docs/releases/0.1.19.md`
 - `docs/releases/0.1.18.md`

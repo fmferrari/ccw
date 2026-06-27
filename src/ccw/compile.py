@@ -1353,6 +1353,148 @@ def _topical_component(score: RankingScore) -> float:
     )
 
 
+def _task_asks_to_document_structured_data(tokens: list[str]) -> bool:
+    return bool(
+        set(tokens)
+        & {
+            "example",
+            "examples",
+            "fixture",
+            "fixtures",
+            "json",
+            "schema",
+            "schemas",
+            "yaml",
+            "yml",
+        }
+    )
+
+
+def _structured_data_doc_extension(file_path: str) -> bool:
+    segments = _path_segments(file_path)
+    if not segments:
+        return False
+    basename = segments[-1]
+    stem, dot, extension = basename.rpartition(".")
+    return bool(dot and extension.lower() in {"json", "yaml", "yml"})
+
+
+def _is_docs_lane_clutter(file_path: str) -> bool:
+    normalized = _normalize_path(file_path)
+    segments = _path_segments(normalized)
+    basename = segments[-1] if segments else normalized.lower()
+    stem = basename.rsplit(".", 1)[0]
+    return (
+        _is_third_party_path(normalized)
+        or _is_ranking_noise_path(normalized)
+        or _is_task_evidence_noise_path(normalized)
+        or _is_generic_clutter_path(normalized)
+        or stem in {"index", "log", "changelog"}
+        or basename in _TASK_DOC_CANDIDATE_EXCLUDED_BASENAMES
+        or any(segment in _TASK_DOC_CANDIDATE_EXCLUDED_SEGMENTS for segment in segments[:-1])
+    )
+
+
+def _is_docs_lane_qualified_doc(
+    file_path: str,
+    score: RankingScore,
+    tokens: list[str],
+) -> bool:
+    if not _is_task_documentation_candidate(file_path) or _is_docs_lane_clutter(file_path):
+        return False
+    if _structured_data_doc_extension(file_path) and not _task_asks_to_document_structured_data(tokens):
+        return False
+    return (
+        score.features.get("subject_coupling", 0.0) >= _subject_coupling_threshold(tokens)
+        or score.features.get("docs_adjacency", 0.0) >= 12.0
+    )
+
+
+def _is_docs_lane_fallback_doc_destination(
+    file_path: str,
+    score: RankingScore,
+    tokens: list[str],
+) -> bool:
+    if _is_docs_lane_qualified_doc(file_path=file_path, score=score, tokens=tokens):
+        return True
+    if not _is_task_documentation_candidate(file_path) or _is_docs_lane_clutter(file_path):
+        return False
+    if _structured_data_doc_extension(file_path) and not _task_asks_to_document_structured_data(tokens):
+        return False
+    return True
+
+
+def _promote_docs_lane_item(
+    ordered_items: list[tuple[float, str, str]],
+    candidate_path: str,
+    max_task_items: int,
+    insertion_index: int,
+) -> list[tuple[float, str, str]]:
+    if max_task_items <= 0:
+        return ordered_items
+    candidate_index = next((idx for idx, item in enumerate(ordered_items) if item[1] == candidate_path), None)
+    if candidate_index is None:
+        return ordered_items
+
+    candidate = ordered_items.pop(candidate_index)
+    insertion_index = max(0, min(insertion_index, max_task_items - 1, len(ordered_items)))
+    ordered_items.insert(insertion_index, candidate)
+    return ordered_items
+
+
+def _compose_docs_mode_task_lane(
+    ordered_items: list[tuple[float, str, str]],
+    score_by_path: dict[str, RankingScore],
+    tokens: list[str],
+    max_task_items: int,
+) -> list[tuple[float, str, str]]:
+    if max_task_items <= 0:
+        return ordered_items
+
+    top_five_limit = min(5, max_task_items)
+    visible_paths = [file_path for _, file_path, _ in ordered_items[:top_five_limit]]
+    qualified_doc_paths = [
+        file_path
+        for _, file_path, _ in ordered_items
+        if _is_docs_lane_qualified_doc(
+            file_path=file_path,
+            score=score_by_path[file_path],
+            tokens=tokens,
+        )
+    ]
+    if any(file_path in visible_paths for file_path in qualified_doc_paths):
+        return ordered_items
+    if qualified_doc_paths:
+        return _promote_docs_lane_item(
+            ordered_items=ordered_items,
+            candidate_path=qualified_doc_paths[0],
+            max_task_items=max_task_items,
+            insertion_index=min(max_task_items - 1, 1),
+        )
+
+    if top_five_limit < 5:
+        return ordered_items
+
+    fallback_paths = [
+        file_path
+        for _, file_path, _ in ordered_items
+        if _is_docs_lane_fallback_doc_destination(
+            file_path=file_path,
+            score=score_by_path[file_path],
+            tokens=tokens,
+        )
+    ]
+    if not fallback_paths or any(file_path in visible_paths for file_path in fallback_paths):
+        return ordered_items
+
+    return _promote_docs_lane_item(
+        ordered_items=ordered_items,
+        candidate_path=fallback_paths[0],
+        max_task_items=max_task_items,
+        insertion_index=4,
+    )
+
+
 def _looks_like_test_path(file_path: str) -> bool:
     normalized = _normalize_path(file_path)
     segments = _path_segments(normalized)
@@ -1740,6 +1882,7 @@ def rank_file_lanes(
             with_adjacency.append((_with_score_feature(score, "docs_adjacency", adjacency), file_path, language, is_third_party))
         task_score_details = with_adjacency
 
+    score_by_path = {file_path: score for score, file_path, _language, _is_third_party in task_score_details}
     best_topical = max((_topical_component(score) for score, _, _, _ in task_score_details), default=0.0)
     adjusted_task_details: list[tuple[float, str, str, bool]] = []
     for score, file_path, language, is_third_party in task_score_details:
@@ -1808,6 +1951,13 @@ def rank_file_lanes(
             max_task_items = max(0, max_items - max_agentic_items)
 
     ordered_task_scored = [*task_scored, *third_party_task_scored]
+    if docs_intent or mode == "docs":
+        ordered_task_scored = _compose_docs_mode_task_lane(
+            ordered_items=ordered_task_scored,
+            score_by_path=score_by_path,
+            tokens=tokens,
+            max_task_items=max_task_items,
+        )
     ordered_agentic_scored = [*agentic_anchor_scored, *agentic_scored]
 
     ranked_task_files = [
